@@ -1,5 +1,65 @@
 # Session notes
 
+## 2026-08-06 — Data safety step 4 (4 of 6 rows), interrupted
+
+Resumed the saved Data safety draft. Steps 1–3 were verified intact on load
+(deletion URL still populated, all six data types still selected — the
+`Device or other IDs` section reads `check_circle 1/1 data type selected` while
+collapsed, which is how you confirm a collapsed section without expanding it).
+
+**Step 4 — "Data usage and handling", 4 of 6 rows now Completed:**
+
+| Data type | Collected | Shared | Ephemeral | Required? | Purposes (collect = share) |
+|---|---|---|---|---|---|
+| Purchase history | Yes | Yes | No | **Users can choose** | App functionality; Account management |
+| Approximate location | Yes | Yes | No | Required | Advertising or marketing |
+| Crash logs | Yes | Yes | No | Required | Fraud prevention, security and compliance |
+| Diagnostics | Yes | Yes | No | Required | Fraud prevention, security and compliance |
+| App interactions | — | — | — | — | **NOT DONE** — Advertising or marketing; Analytics; Required |
+| Device or other IDs | — | — | — | — | **NOT DONE** — Advertising or marketing; Analytics; Fraud prevention; Required |
+
+Purchase history is the only **optional** one: the user chooses whether to buy.
+Everything else is ad/SDK-driven and cannot be turned off, so it is *required*.
+
+**Interrupted:** the Claude Chrome extension disconnected mid-way through the
+App interactions dialog. Nothing was lost — that row had not been saved yet, so
+it is still `Not started`.
+
+> **UNVERIFIED AND IMPORTANT:** the four completed rows were saved via each
+> dialog's own **Save**, but the *form* was never committed with **Save draft**
+> before the disconnect. It is not confirmed that they survive a page reload.
+> **First action on resume: reopen step 4 and check whether the four rows still
+> read `Completed`.** If they do, click **Save draft** immediately before doing
+> anything else. If they don't, redo them from the table above.
+
+**Gotchas found this session (all cost real time):**
+
+- **`Start` opens a dialog that is NOT reliably findable by `[role=dialog]`.**
+  Right after opening, the new dialog may not be in that query yet, while a
+  *stale* dialog from a previously-saved row stays in the DOM at full height
+  (791px) and wins `.pop()`. Twice this made a filler operate on the wrong
+  (already-saved) node while the correct empty dialog sat on screen.
+- **`document.elementFromPoint` is also not safe here** — the stale overlay can
+  still be the topmost painted element, so hit-testing returned `Purchase
+  history` while `App interactions` was visibly on screen.
+- **What actually works:** select by *expected title*. Filter elements to those
+  that are connected, taller than 300px, contain `Is this data collected, shared
+  or both?`, hold a `material-checkbox`, and whose `innerText.split('\n')[0]`
+  equals the data type you just opened; then reduce to the innermost match.
+  **Always assert the resolved dialog's title before ticking anything.**
+- **`input.click()` on the inner `input[type=checkbox]`/`radio` works** and
+  Angular picks it up (as the 2026-08-05 notes said). Plain `.click()` on the
+  `Start`/`Save` buttons also works — the earlier belief that it did not was a
+  misread caused by slicing `document.body.innerText` from the wrong offset.
+- **`Runtime.evaluate` times out at 45s on this page**, but the work usually
+  *completes* anyway — the timeout is the CDP round-trip, not the page. Do not
+  assume failure; re-query state in a fresh short call before redoing anything.
+  Keep each script to roughly one question's worth of clicks.
+- Play Console threw `An unexpected error has occurred (724AB855)` once when a
+  long script raced it. Smaller steps stopped it recurring.
+
+---
+
 ## 2026-08-05 — keystore, hosting, RevenueCat, most of App content
 
 Picked up from the 2026-07-31 session below; nothing had changed on disk in

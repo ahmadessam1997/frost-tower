@@ -1,0 +1,9 @@
+{
+  "appId": "com.ahmadessam.frosttower",
+  "appName": "Frost Tower",
+  "webDir": "www",
+  "backgroundColor": "#0a1030",
+  "android": {
+    "backgroundColor": "#0a1030"
+  }
+}

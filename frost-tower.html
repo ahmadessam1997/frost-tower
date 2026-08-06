@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<!--
+  ============================================================================
+  STALE v1.0 SNAPSHOT — NOT THE SHIPPING GAME. DO NOT BUILD FROM THIS FILE.
+  ============================================================================
+  Until 2026-07-31 this was a byte-identical duplicate of www/index.html, kept
+  in sync by hand. That is no longer possible: the game was split into
+  www/index.html + www/js/*.js when skins, the shop, AdMob and RevenueCat were
+  added, and a single self-contained file cannot represent it any more.
+
+  This copy has NO shop, NO skins, NO ads and NO purchases. It is retained
+  only as a playable record of v1.0.
+
+  The shipping source is  www/  — that is what `npx cap sync android` copies.
+  ============================================================================
+-->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>FROST TOWER v1.0 (stale snapshot) — climb or freeze</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;overflow:hidden;background:#0a1030;touch-action:none;
+    user-select:none;-webkit-user-select:none;font-family:-apple-system,'Segoe UI',Roboto,sans-serif;}
+  canvas{display:block;width:100vw;height:100vh;}
+  #hud{position:fixed;top:0;left:0;right:0;display:flex;justify-content:space-between;
+    padding:10px 14px;color:#fff;pointer-events:none;font-weight:800;
+    text-shadow:0 2px 0 rgba(0,0,0,.3);}
+  #hud div{background:rgba(10,16,48,.55);border-radius:20px;padding:6px 13px;font-size:14px;
+    backdrop-filter:blur(4px);}
+  #combo{position:fixed;top:18%;left:0;right:0;text-align:center;pointer-events:none;
+    font-weight:900;font-size:34px;color:#8fe8ff;text-shadow:0 0 18px #38b6ff,0 3px 0 rgba(0,0,0,.35);
+    opacity:0;transition:opacity .2s,transform .2s;transform:scale(.8);}
+  #combo.show{opacity:1;transform:scale(1);}
+  .overlay{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
+    background:rgba(8,12,40,.78);z-index:10;padding:22px;}
+  .card{background:#fff;border-radius:26px;padding:28px 24px;max-width:340px;width:100%;
+    text-align:center;box-shadow:0 18px 50px rgba(5,8,30,.6);}
+  .card h1{font-size:30px;font-weight:900;letter-spacing:-.02em;
+    background:linear-gradient(90deg,#38b6ff,#7048e8);-webkit-background-clip:text;
+    background-clip:text;color:transparent;margin-bottom:6px;}
+  .card p{color:#5b5470;font-size:14px;line-height:1.55;margin-bottom:18px;}
+  .btn{background:linear-gradient(180deg,#5cc8ff,#2e9be6);color:#fff;border:none;
+    border-radius:30px;padding:14px 38px;font-size:16px;font-weight:800;letter-spacing:.03em;
+    box-shadow:0 6px 0 #1a6fb0;}
+  .btn:active{transform:translateY(4px);box-shadow:0 2px 0 #1a6fb0;}
+  .hidden{display:none;}
+  .stat{font-size:15px;color:#3a3350;margin:4px 0;font-weight:700;}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="hud">
+  <div id="floorHud">🏔 Floor 0</div>
+  <div id="scoreHud">✦ 0</div>
+  <div id="bestHud">👑 0</div>
+</div>
+<div id="combo"></div>
+
+<div class="overlay" id="menu">
+  <div class="card">
+    <h1>FROST TOWER</h1>
+    <p>Climb forever. The frost is rising. ❄️<br><br>
+    <b>Hold LEFT / RIGHT</b> side of the screen to run.<br>
+    You bounce automatically — <b>speed = height</b>.<br>
+    Sprint into walls to rebound. Skip floors for combos!</p>
+    <button class="btn" id="playBtn">CLIMB!</button>
+  </div>
+</div>
+
+<div class="overlay hidden" id="overOv">
+  <div class="card">
+    <h1 id="overTitle">FROZEN!</h1>
+    <div class="stat" id="oFloor"></div>
+    <div class="stat" id="oCombo"></div>
+    <div class="stat" id="oScore"></div>
+    <p id="oQuip" style="margin-top:12px"></p>
+    <button class="btn" id="againBtn">CLIMB AGAIN</button>
+  </div>
+</div>
+
+<script>
+(function(){
+'use strict';
+/* ---- persistent storage: Capacitor Preferences on device, localStorage fallback ---- */
+const Store={
+  g:async k=>{try{const P=window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.Preferences;
+    if(P){return (await P.get({key:k})).value;}}catch(e){}
+    try{return localStorage.getItem(k);}catch(e){return null;}},
+  s:async(k,v)=>{try{const P=window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.Preferences;
+    if(P){await P.set({key:k,value:v});return;}}catch(e){}
+    try{localStorage.setItem(k,v);}catch(e){}}};
+
+const cv=document.getElementById('c'),ctx=cv.getContext('2d');
+/* roundRect polyfill — some older Android WebViews lack it; without this every
+   frame would throw and the screen stays black. */
+if(!CanvasRenderingContext2D.prototype.roundRect){
+  CanvasRenderingContext2D.prototype.roundRect=function(x,y,w,h,r){
+    r=Math.max(0,Math.min(r,Math.abs(w)/2,Math.abs(h)/2));
+    this.moveTo(x+r,y);
+    this.arcTo(x+w,y,x+w,y+h,r);
+    this.arcTo(x+w,y+h,x,y+h,r);
+    this.arcTo(x,y+h,x,y,r);
+    this.arcTo(x,y,x+w,y,r);
+    this.closePath();
+    return this;};
+}
+let W=0,H=0;
+function resize(){const dpr=Math.min(devicePixelRatio||1,2);
+  W=innerWidth;H=innerHeight;cv.width=W*dpr;cv.height=H*dpr;
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  /* keep the player inside the walls after an orientation/size change */
+  try{if(P){P.x=Math.max(P.r,Math.min(W-P.r,P.x));}}catch(_){}}
+addEventListener('resize',resize);resize();
+
+/* ---------- state ---------- */
+let state='menu', best=0;
+let P, plats, cam, frost, maxFloor, lastFloor, comboTotal, comboStreak, comboTimer, score, snow=[], parts=[], shake=0, tGame=0;
+
+const SPACING=78, PW0=120;
+function platW(f){return Math.max(48, PW0 - f*0.7);}
+function newPlat(f){
+  const w=platW(f);
+  let type='ice';
+  if(f>25&&Math.random()<0.18)type='move';
+  if(f>50&&Math.random()<0.15)type='crack';
+  return {f, x:20+Math.random()*(W-40-w), y:-f*SPACING, w, h:16, type,
+    dir:Math.random()<.5?-1:1, sp:40+Math.random()*60, broken:false, tm:0};
+}
+function reset(){
+  P={x:W/2,y:-20,vx:0,vy:0,r:16,onIce:false};
+  plats=[{f:0,x:0,y:0,w:W,h:16,type:'base'}];
+  for(let f=1;f<=30;f++)plats.push(newPlat(f));
+  cam=-H*0.7; frost=H*0.6; maxFloor=0; lastFloor=0;
+  comboTotal=0; comboStreak=0; comboTimer=0; score=0; tGame=0;
+  parts=[]; shake=0;
+  frostY=H*1.4;
+  updHud();
+}
+function updHud(){
+  document.getElementById('floorHud').textContent='🏔 Floor '+maxFloor;
+  document.getElementById('scoreHud').textContent='✦ '+score;
+  document.getElementById('bestHud').textContent='👑 '+best;
+}
+
+/* snow */
+for(let i=0;i<70;i++)snow.push({x:Math.random(),y:Math.random(),s:1+Math.random()*2.5,v:12+Math.random()*26,w:Math.random()*6});
+
+/* ---------- input ---------- */
+/* track every active pointer so two-thumb play works: releasing one finger
+   falls back to the other instead of stopping the run */
+let dir=0;
+const touchStack=[];
+function stackDir(){dir=touchStack.length?touchStack[touchStack.length-1].side:0;}
+addEventListener('pointerdown',e=>{
+  if(state!=='play')return;
+  e.preventDefault();
+  const side=e.clientX<W/2?-1:1;
+  touchStack.push({id:e.pointerId,side});dir=side;},{passive:false});
+addEventListener('pointermove',e=>{
+  if(state!=='play')return;
+  const t=touchStack.find(t=>t.id===e.pointerId);
+  if(t){t.side=e.clientX<W/2?-1:1;stackDir();}});
+function dropPtr(e){
+  const i=touchStack.findIndex(t=>t.id===e.pointerId);
+  if(i>=0)touchStack.splice(i,1);
+  stackDir();}
+addEventListener('pointerup',dropPtr);
+addEventListener('pointercancel',dropPtr);
+addEventListener('keydown',e=>{
+  if(e.code==='ArrowLeft')dir=-1;
+  if(e.code==='ArrowRight')dir=1;});
+addEventListener('keyup',e=>{
+  if((e.code==='ArrowLeft'&&dir===-1)||(e.code==='ArrowRight'&&dir===1))dir=0;});
+
+document.getElementById('playBtn').addEventListener('click',()=>{
+  document.getElementById('menu').classList.add('hidden');reset();state='play';});
+document.getElementById('againBtn').addEventListener('click',()=>{
+  document.getElementById('overOv').classList.add('hidden');reset();state='play';});
+
+/* ---------- physics ---------- */
+const ACC=1400, FRIC=6, MAXV=560, GRAV=1500;
+function step(dt){
+  if(state!=='play')return;
+  tGame+=dt;
+
+  P.vx += dir*ACC*dt;
+  const fr = P.onIce?1.2:FRIC;
+  if(dir===0) P.vx -= P.vx*Math.min(1,fr*dt);
+  P.vx = Math.max(-MAXV,Math.min(MAXV,P.vx));
+  P.vy += GRAV*dt; if(P.vy>1150)P.vy=1150;
+  P.x += P.vx*dt; P.y += P.vy*dt;
+
+  /* wall rebound keeps your speed — Icy Tower style */
+  if(P.x<P.r){P.x=P.r;P.vx=Math.abs(P.vx)*0.96;pop(P.x,P.y,'#8fe8ff',5);}
+  if(P.x>W-P.r){P.x=W-P.r;P.vx=-Math.abs(P.vx)*0.96;pop(P.x,P.y,'#8fe8ff',5);}
+
+  /* landing */
+  P.onIce=false;
+  if(P.vy>0){
+    for(const p of plats){
+      if(p.broken)continue;
+      if(P.x>p.x-6&&P.x<p.x+p.w+6&&
+         P.y+P.r>p.y&&P.y+P.r<p.y+p.h+P.vy*dt+6){
+        P.y=p.y-P.r;
+        const speed=Math.abs(P.vx);
+        P.vy = -(600 + speed*1.05);          /* speed = height */
+        P.onIce = p.type!=='base';
+        pop(P.x,p.y,'#dff4ff',6);
+        if(navigator.vibrate)navigator.vibrate(8);
+        /* combo logic */
+        const gained=p.f-lastFloor;
+        if(gained>=2){comboStreak+=gained;comboTimer=2.2;
+          showCombo(comboStreak);
+          comboTotal+=gained;
+          score+=gained*15;
+        } else if(gained>0){ if(comboTimer<=0)comboStreak=0; }
+        if(p.f>maxFloor){score+=(p.f-maxFloor)*10;maxFloor=p.f;}
+        lastFloor=p.f;
+        if(p.type==='crack'){p.tm=0.001;}
+        updHud();
+        break;
+      }
+    }
+  }
+  comboTimer-=dt; if(comboTimer<=0){comboStreak=0;hideCombo();}
+
+  /* platform updates */
+  plats.forEach(p=>{
+    if(p.type==='move'){p.x+=p.dir*p.sp*dt;
+      if(p.x<10){p.x=10;p.dir=1;}if(p.x+p.w>W-10){p.x=W-10-p.w;p.dir=-1;}}
+    if(p.type==='crack'&&p.tm>0){p.tm+=dt;
+      if(p.tm>0.45&&!p.broken){p.broken=true;
+        pop(p.x+p.w/2,p.y,'#bfe6ff',10);}}
+  });
+
+  /* camera + spawning */
+  const target=P.y-H*0.42;
+  if(target<cam)cam+=(target-cam)*Math.min(1,dt*8);
+  const topF=plats.length?Math.max(...plats.map(p=>p.f)):0;
+  let hf=topF;
+  while((-(hf+1)*SPACING)>cam-200){hf++;plats.push(newPlat(hf));}
+  plats=plats.filter(p=>p.y<cam+H+300&&!( p.broken&&p.tm>2));
+
+  /* frost line rises */
+  const fSpeed = 26 + maxFloor*0.9 + tGame*1.1;
+  frostY -= fSpeed*dt;
+  if(frostY>cam+H+60) frostY=cam+H+60;   /* never lag too far */
+  if(P.y+P.r > frostY) gameOver();
+  if(P.y-cam>H+80) gameOver();
+
+  updParts(dt);
+}
+let frostY=99999;
+reset();   /* build the world immediately so the render loop never sees an empty state */
+Store.g('ftb').then(v=>{if(v){best=parseInt(v)||0;updHud();}});
+
+function pop(x,y,c,n){
+  for(let i=0;i<n;i++)parts.push({x,y,vx:(Math.random()-.5)*220,
+    vy:-Math.random()*200,r:2+Math.random()*3,c,life:.7});
+}
+function updParts(dt){
+  for(let i=parts.length-1;i>=0;i--){const p=parts[i];
+    p.life-=dt*1.6;p.vy+=700*dt;p.x+=p.vx*dt;p.y+=p.vy*dt;
+    if(p.life<=0)parts.splice(i,1);}
+}
+const comboEl=document.getElementById('combo');
+let comboHideT;
+function showCombo(n){
+  comboEl.textContent='COMBO ×'+n+' ❄️';
+  comboEl.classList.add('show');
+  clearTimeout(comboHideT);
+}
+function hideCombo(){comboEl.classList.remove('show');}
+
+function gameOver(){
+  if(state!=='play')return;
+  state='over';hideCombo();
+  score+=comboTotal*5;
+  const isBest = score>best;
+  if(isBest){best=score;Store.s('ftb',String(best));}
+  updHud();
+  document.getElementById('oFloor').textContent='🏔 Highest floor: '+maxFloor;
+  document.getElementById('oCombo').textContent='❄️ Combo points: '+comboTotal;
+  document.getElementById('oScore').textContent='✦ Score: '+score+(isBest&&score>0?'  — NEW BEST!':'');
+  document.getElementById('oQuip').textContent=
+    maxFloor<15?'The frost barely had to try. 🥶':
+    maxFloor<40?'A respectable climb. The tower nods.':
+    maxFloor<80?'❄️ Impressive! The frost is sweating. Somehow.':
+    '👑 TOWER LEGEND. The summit whispers your name.';
+  document.getElementById('overOv').classList.remove('hidden');
+  if(navigator.vibrate)navigator.vibrate([60,40,80]);
+}
+
+/* ---------- render ---------- */
+function rr(x,y,w,h,r){ctx.beginPath();ctx.roundRect(x,y,w,h,r);}
+function draw(){
+  /* aurora sky shifting with height */
+  const hFac=Math.min(1,maxFloor/120);
+  const sky=ctx.createLinearGradient(0,0,0,H);
+  sky.addColorStop(0,`hsl(${250+hFac*60},60%,${10+hFac*6}%)`);
+  sky.addColorStop(.55,`hsl(${222+hFac*40},58%,${20+hFac*5}%)`);
+  sky.addColorStop(1,'#1c2b5e');
+  ctx.fillStyle=sky;ctx.fillRect(0,0,W,H);
+  /* aurora band */
+  const au=ctx.createLinearGradient(0,H*0.1,W,H*0.35);
+  au.addColorStop(0,'rgba(80,255,190,0)');
+  au.addColorStop(.5,'rgba(80,255,190,'+(0.10+hFac*0.14)+')');
+  au.addColorStop(1,'rgba(140,120,255,0)');
+  ctx.fillStyle=au;
+  ctx.beginPath();
+  ctx.moveTo(0,H*0.16);
+  for(let x=0;x<=W;x+=30)ctx.lineTo(x,H*0.16+Math.sin(x*0.01+performance.now()/1400)*26);
+  ctx.lineTo(W,H*0.42);ctx.lineTo(0,H*0.42);ctx.fill();
+  /* stars */
+  ctx.fillStyle='rgba(255,255,255,.8)';
+  for(let i=0;i<26;i++){const sx=(i*97)%W,sy=((i*61)%Math.floor(H*0.5));
+    ctx.globalAlpha=0.3+((i*37)%60)/100;
+    ctx.fillRect(sx,sy,2,2);}
+  ctx.globalAlpha=1;
+
+  ctx.save();
+  if(shake>0){shake*=0.85;ctx.translate((Math.random()-.5)*shake,(Math.random()-.5)*shake);}
+  ctx.translate(0,-cam);
+
+  /* tower walls */
+  const wallG=ctx.createLinearGradient(0,0,18,0);
+  wallG.addColorStop(0,'#2a3d7a');wallG.addColorStop(1,'rgba(42,61,122,0)');
+  ctx.fillStyle=wallG;ctx.fillRect(0,cam,18,H);
+  const wallG2=ctx.createLinearGradient(W,0,W-18,0);
+  wallG2.addColorStop(0,'#2a3d7a');wallG2.addColorStop(1,'rgba(42,61,122,0)');
+  ctx.fillStyle=wallG2;ctx.fillRect(W-18,cam,18,H);
+
+  /* platforms */
+  plats.forEach(p=>{
+    if(p.broken)return;
+    ctx.save();
+    if(p.type==='crack'&&p.tm>0)ctx.translate((Math.random()-.5)*3,0);
+    const g=ctx.createLinearGradient(0,p.y,0,p.y+p.h);
+    if(p.type==='base'){g.addColorStop(0,'#7ba7d9');g.addColorStop(1,'#4a76ad');}
+    else if(p.type==='move'){g.addColorStop(0,'#b39ddb');g.addColorStop(1,'#7e57c2');}
+    else if(p.type==='crack'){g.addColorStop(0,'#ffe0b2');g.addColorStop(1,'#e0a96b');}
+    else{g.addColorStop(0,'#c9ecff');g.addColorStop(1,'#79bde8');}
+    ctx.fillStyle=g;rr(p.x,p.y,p.w,p.h,8);ctx.fill();
+    ctx.fillStyle='rgba(255,255,255,.55)';
+    rr(p.x+4,p.y+2,Math.max(10,p.w*0.35),4,2);ctx.fill();
+    if(p.type==='crack'){
+      ctx.strokeStyle='rgba(90,60,20,.5)';ctx.lineWidth=1.5;
+      ctx.beginPath();ctx.moveTo(p.x+p.w*0.3,p.y+2);ctx.lineTo(p.x+p.w*0.45,p.y+12);
+      ctx.moveTo(p.x+p.w*0.7,p.y+3);ctx.lineTo(p.x+p.w*0.6,p.y+13);ctx.stroke();}
+    /* floor marker every 10 */
+    if(p.f>0&&p.f%10===0){
+      ctx.fillStyle='rgba(255,255,255,.75)';
+      ctx.font='800 12px sans-serif';ctx.textAlign='left';
+      ctx.fillText('— '+p.f+' —', p.x+p.w+8, p.y+12);
+    }
+    ctx.restore();
+  });
+
+  /* player: frost sprite */
+  ctx.save();
+  ctx.translate(P.x,P.y);
+  const lean=Math.max(-0.3,Math.min(0.3,P.vx/900));
+  ctx.rotate(lean);
+  const stretch=Math.max(0.85,Math.min(1.25,1+(-P.vy)/2600));
+  ctx.scale(2-stretch,stretch);
+  ctx.fillStyle='rgba(10,16,48,.3)';
+  ctx.beginPath();ctx.ellipse(0,P.r+3,P.r*0.9,4,0,0,7);ctx.fill();
+  const bg=ctx.createRadialGradient(-5,-6,3,0,0,P.r+2);
+  bg.addColorStop(0,'#eafaff');bg.addColorStop(1,'#8fd4f5');
+  ctx.fillStyle=bg;ctx.beginPath();ctx.arc(0,0,P.r,0,7);ctx.fill();
+  /* scarf */
+  ctx.fillStyle='#ff5c8a';rr(-P.r+2,3,P.r*2-4,6,3);ctx.fill();
+  ctx.fillStyle='#ff5c8a';rr(4,7,6,12,3);ctx.fill();
+  /* face */
+  ctx.fillStyle='#1a2450';
+  ctx.beginPath();ctx.arc(-5,-4,2.6,0,7);ctx.arc(5,-4,2.6,0,7);ctx.fill();
+  ctx.strokeStyle='#1a2450';ctx.lineWidth=2;ctx.lineCap='round';
+  ctx.beginPath();
+  if(P.vy<-300)ctx.arc(0,2,3.4,0,7);
+  else ctx.arc(0,1,4,0.15,Math.PI-0.15);
+  ctx.stroke();
+  ctx.restore();
+
+  /* particles */
+  parts.forEach(p=>{ctx.globalAlpha=Math.max(0,p.life);ctx.fillStyle=p.c;
+    ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,7);ctx.fill();});
+  ctx.globalAlpha=1;
+
+  /* frost line */
+  if(state==='play'||state==='over'){
+    const fg=ctx.createLinearGradient(0,frostY-70,0,frostY+200);
+    fg.addColorStop(0,'rgba(160,230,255,0)');
+    fg.addColorStop(.35,'rgba(160,230,255,.55)');
+    fg.addColorStop(1,'rgba(210,245,255,.95)');
+    ctx.fillStyle=fg;ctx.fillRect(0,frostY-70,W,H+300);
+    ctx.strokeStyle='rgba(255,255,255,.9)';ctx.lineWidth=3;
+    ctx.beginPath();
+    for(let x=0;x<=W;x+=24)
+      ctx.lineTo(x,frostY+Math.sin(x*0.08+performance.now()/300)*6);
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  /* snow (screen space) */
+  ctx.fillStyle='rgba(255,255,255,.85)';
+  const t=performance.now()/1000;
+  snow.forEach(s=>{
+    const sx=((s.x*W)+Math.sin(t+s.w)*22+W)%W;
+    const sy=((s.y*H)+t*s.v)%H;
+    ctx.globalAlpha=0.35+s.s*0.18;
+    ctx.beginPath();ctx.arc(sx,sy,s.s,0,7);ctx.fill();
+  });
+  ctx.globalAlpha=1;
+}
+
+let last=performance.now();
+function loop(now){
+  let dt=(now-last)/1000;last=now;if(dt>0.05)dt=0.05;
+  step(dt);draw();requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>

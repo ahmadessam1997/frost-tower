@@ -1,0 +1,21 @@
+# ---- signing secrets: NEVER commit these ----
+# Losing the .jks means you can never update the app on Play again.
+# Back it up somewhere permanent and off this machine.
+*.jks
+*.keystore
+keystore.properties
+android/keystore.properties
+
+# ---- build output ----
+node_modules/
+android/build/
+android/app/build/
+android/.gradle/
+android/capacitor-cordova-android-plugins/build/
+android.cap7.bak/
+*.aab
+*.apk
+
+# ---- local ----
+.DS_Store
+Thumbs.db

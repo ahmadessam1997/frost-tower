@@ -28,6 +28,14 @@ upload**.
 - **App content: 8 of 10 declarations saved** — privacy policy URL, ads = YES,
   sign-in details = No, target audience 13+ (Families avoided), advertising
   ID = YES, government = No, financial = none, health = none.
+- **Data safety: saved as a draft, steps 1–3 of 5 done.** Collects/shares = Yes,
+  encrypted in transit = Yes, no account creation, no external logins, deletion
+  URL set. Six data types selected: **Approximate location, Purchase history,
+  App interactions, Crash logs, Diagnostics, Device or other IDs.** Step 4
+  ("Data usage and handling") is untouched — all six rows read *Not started*.
+  Resume by opening each row's **Start** and answering from the table in
+  `store-listing.md`: everything is collected **and shared**, none ephemeral, ad
+  data **required** and purchase history **optional**.
 
 **Hard-blocked on the owner (cannot be automated):**
 
@@ -64,6 +72,19 @@ upload**.
 - **Typing into GitHub's repo-name field via raw coordinates hit a keyboard
   shortcut** and navigated to Copilot. Use `find` + `form_input` with element
   refs on GitHub, not screenshot coordinates.
+- **Do not click Play Console checkboxes by screenshot coordinate.** The page
+  re-scales between the screenshot and the click (viewport flips 744↔698px), so
+  clicks land a row or two off — twice they silently collapsed a section instead
+  of ticking a box, and `Page.captureScreenshot` times out every few calls
+  anyway. What works: every `material-checkbox` wraps a real
+  `input[type=checkbox]`, so
+  `document.querySelectorAll('material-checkbox')`, match on
+  `innerText.split('\n')[0]`, then `input.click()` — Angular picks it up.
+  Sections are **collapsible and virtualised**: a collapsed section's inputs are
+  not in the DOM at all (they keep their state, they just cannot be queried), so
+  click every element whose text is exactly `Show` first, and re-expand between
+  passes because the page re-collapses them. Selected sections stop showing
+  `n/m data types selected`, which is the tell that a tick registered.
 
 **Next, in order:** AdMob account (owner) → real ad IDs into `config.js` *and*
 the manifest → IARC + Data safety → `cap sync` + rebuild → upload to Closed

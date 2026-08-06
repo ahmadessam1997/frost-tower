@@ -37,7 +37,12 @@ Done on 2026-08-05:
 App content declarations **saved**: privacy policy, ads = YES, sign-in details =
 No, target audience 13-15/16-17/18+, advertising ID = YES (analytics +
 advertising + fraud prevention), government apps = No, financial features = none,
-health features = none. **Still open: Content ratings (IARC) and Data safety.**
+health features = none.
+
+**Still open:** Content ratings (IARC — completing the questionnaire *is*
+agreeing to IARC's Terms of Service, so it needs the owner) and Data safety
+(**saved as a draft**, steps 1–3 of 5 done; step 4 "Data usage and handling" has
+all six data types at *Not started*).
 
 ---
 

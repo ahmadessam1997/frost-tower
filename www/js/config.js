@@ -40,7 +40,10 @@
        Public Google SDK key (starts "goog_") from
        RevenueCat → Project → API keys. NOT the secret key. */
     revenueCat: {
-      androidApiKey: ''   // e.g. 'goog_XXXXXXXXXXXXXXXXXXXXXXXXXXXX'
+      // Project "Frost Tower" → app "Frost Tower (Play Store)", 2026-08-05.
+      // Public SDK key: safe to ship in the bundle. The SECRET key is not
+      // here and must never be.
+      androidApiKey: 'goog_AmTMmpCjnxrMXGguNLpiuVCsEJG'
     },
 
     /* ---------------- Products ----------------

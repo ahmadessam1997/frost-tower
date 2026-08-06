@@ -1,4 +1,81 @@
-# Session notes — 2026-07-31 — monetization (skins, coins, ads, IAP) + Play Console
+# Session notes
+
+## 2026-08-05 — keystore, hosting, RevenueCat, most of App content
+
+Picked up from the 2026-07-31 session below; nothing had changed on disk in
+between. Tests re-verified at **42/42** twice (before and after the config
+change). Owner decisions this session: **Claude generates the keystore**,
+**whole project public on GitHub**, **AdMob + RevenueCat before the first
+upload**.
+
+**Unblocked:**
+
+- **Keystore created** — `android/frosttower-upload.jks`, alias `upload`,
+  SHA-1 `8A:24:2C:C5:75:D8:B1:14:9B:4C:46:29:29:90:0B:1E:DE:1B:E8:4F`, valid to
+  2053. Password in the gitignored `android/keystore.properties`. `bundleRelease`
+  now emits a **signed** 10.0 MB AAB. Unlike adaptive-chess's blank certificate
+  DN, this one is real (`CN=Ahmad Essam, O=Ahmad Essam, C=US`), so there is no
+  ambiguity about where the key lives — it is on this disk and nowhere else.
+- **Project is now a git repo** and public at
+  `github.com/ahmadessam1997/frost-tower`, Pages serving `/docs` from `main`.
+  Both legal pages verified HTTP 200. That removes the reason the 2026-07-31
+  notes gave for keeping `frost-tower.html` and `privacy-policy.md` around
+  ("no way back") — history now covers it.
+- **RevenueCat** project `Frost Tower` (`c9b2848b`) + Play Store app
+  (`appb1be81e0e7`, Capacitor platform). Public key
+  `goog_AmTMmpCjnxrMXGguNLpiuVCsEJG` is in `config.js` and verified present
+  inside the built AAB.
+- **App content: 8 of 10 declarations saved** — privacy policy URL, ads = YES,
+  sign-in details = No, target audience 13+ (Families avoided), advertising
+  ID = YES, government = No, financial = none, health = none.
+
+**Hard-blocked on the owner (cannot be automated):**
+
+- **AdMob has no account at all.** Signup demands accepting the AdSense Terms of
+  Service and picking a payment country that Google says cannot be changed
+  later. Account creation and accepting legal terms are not things to do on
+  someone's behalf. Until it exists the app keeps Google's test ad unit IDs.
+- **Content ratings (IARC)** — the questionnaire says completing it *is*
+  agreeing to IARC's Terms of Service. Same reason.
+
+**Root causes worth remembering:**
+
+- **`keystore.properties` must have no UTF-8 BOM.** PowerShell 5.1's
+  `Set-Content -Encoding utf8` writes one; Java's `Properties.load` reads it as
+  part of the first key, so `keystoreProperties['storeFile']` came back null and
+  Gradle died with `Cannot convert 'null' to File`. Fix:
+  `[System.IO.File]::WriteAllText(path, text, (New-Object System.Text.UTF8Encoding $false))`.
+- **"Sign-in details" is about credentials, not payments — answer No.** The
+  form's Yes branch lists "payments, such as one-time products", which reads
+  like a match for the four IAPs, and we initially went that way. But the Yes
+  path has a required checkbox: *"Sign-in details in this declaration provide
+  full access to all the features and content within this app, including premium
+  or paid content."* With no credentials to give and no way to hand a reviewer
+  the paid skins, that cannot be ticked truthfully — the save just fails with a
+  bare "Your changes couldn't be saved" and the real reason is only visible in
+  the DOM (`error-panel` → "Is any other information required?"). No is correct,
+  which is what `store-listing.md` said all along.
+- **`npm run serve` is broken** — it calls `http-server`, which is not in
+  `devDependencies` and is not installed. Added `test/serve.js`, a
+  zero-dependency static server. Run it before `npm test`.
+- **Play Console deep links bounce to the app list** if loaded cold. Load
+  `app-dashboard` first, then click through; the App content route is
+  `app-content/overview`, not `app-content`.
+- **Typing into GitHub's repo-name field via raw coordinates hit a keyboard
+  shortcut** and navigated to Copilot. Use `find` + `form_input` with element
+  refs on GitHub, not screenshot coordinates.
+
+**Next, in order:** AdMob account (owner) → real ad IDs into `config.js` *and*
+the manifest → IARC + Data safety → `cap sync` + rebuild → upload to Closed
+testing → create the 4 products → import them into RevenueCat with entitlements
+→ start the 14-day tester clock.
+
+RevenueCat also still needs a **Google service account JSON** (Play Console →
+Users and permissions) before it can validate real transactions.
+
+---
+
+## 2026-07-31 — monetization (skins, coins, ads, IAP) + Play Console
 
 Frost Tower went from a free, offline, zero-data arcade game to a free
 ad-supported game with a coin economy, nine collectible climbers and four

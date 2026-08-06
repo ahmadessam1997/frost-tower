@@ -18,10 +18,26 @@ Fixed values used throughout:
 | Ads | AdMob interstitial (every 3rd run, 90s cooldown) + rewarded (revive / coins) |
 | Java for builds | **21** — `C:\Program Files\Android\Android Studio\jbr` (JDK 17 fails: "invalid source release: 21") |
 
-**Current state:** code complete and tested (42/42 e2e assertions pass, debug APK
-builds, Play Billing 8.3.0 resolved). Ships with Google's **test** ad units and
-**no** RevenueCat key, so purchases fail closed on device. Steps 1–4 below are
-the account work that turns that on.
+**Current state (updated 2026-08-05):** code complete and tested (42/42 e2e
+assertions pass), Play Billing 8.3.0 resolved, and a **signed release AAB now
+builds** (10.0 MB). RevenueCat is wired; AdMob still ships Google's **test** ad
+units. Steps 1 and 3 below are the remaining account work.
+
+Done on 2026-08-05:
+
+| Thing | Value |
+|---|---|
+| Upload keystore | `android/frosttower-upload.jks`, alias `upload`, SHA-1 `8A:24:2C:C5:75:D8:B1:14:9B:4C:46:29:29:90:0B:1E:DE:1B:E8:4F`. Password is in `android/keystore.properties` (gitignored). **BACK BOTH UP OFF-MACHINE.** |
+| GitHub repo | https://github.com/ahmadessam1997/frost-tower (public) — the project is now a git repo |
+| Privacy policy URL | https://ahmadessam1997.github.io/frost-tower/privacy-policy.html (live, HTTP 200) |
+| Data deletion URL | https://ahmadessam1997.github.io/frost-tower/delete-data.html (live, HTTP 200) |
+| RevenueCat project | `Frost Tower`, project `c9b2848b`, app `appb1be81e0e7` (Play Store, Capacitor) |
+| RevenueCat public key | `goog_AmTMmpCjnxrMXGguNLpiuVCsEJG` — in `www/js/config.js` and in the built AAB |
+
+App content declarations **saved**: privacy policy, ads = YES, sign-in details =
+No, target audience 13-15/16-17/18+, advertising ID = YES (analytics +
+advertising + fraud prevention), government apps = No, financial features = none,
+health features = none. **Still open: Content ratings (IARC) and Data safety.**
 
 ---
 
@@ -113,39 +129,44 @@ run in test mode without real charges.
 
 **Check:** on device, `FTBilling.state` should be `'ready'`, not `'unavailable'`.
 
-## 5. Host the legal pages
+## 5. Host the legal pages — ~~TODO~~ **DONE 2026-08-05**
 
-`docs/privacy-policy.html` and `docs/delete-data.html` are written and ready.
+The project is now a git repo pushed to
+https://github.com/ahmadessam1997/frost-tower (public), with Pages serving
+`/docs` from `main`. Both pages return HTTP 200:
 
-Push this project to GitHub and enable **Pages → Deploy from branch → /docs**:
+- https://ahmadessam1997.github.io/frost-tower/privacy-policy.html
+- https://ahmadessam1997.github.io/frost-tower/delete-data.html
 
-- `https://<user>.github.io/frost-tower/privacy-policy.html`
-- `https://<user>.github.io/frost-tower/delete-data.html`
+Neither has been reviewed by a lawyer — read them.
 
-Neither has been reviewed by a lawyer — read them before publishing.
+`privacy-policy.md` (the superseded v1 "collects no data" policy) is in the repo
+but **not** on Pages: Pages serves `/docs` only, and the file carries a loud
+SUPERSEDED banner. Do not host it.
 
 **Delete `privacy-policy.md` from any hosting.** It is the v1 "collects no data"
 policy, now false, and is retained only as a historical record.
 
-## 6. Build the release AAB
+## 6. Build the release AAB — **WORKS**
 
 ```bash
 export JAVA_HOME="C:/Program Files/Android/Android Studio/jbr"
+npx cap sync android          # after ANY www/ change, or the AAB ships stale JS
 cd android && ./gradlew bundleRelease
 ```
 
-Signing: Frost Tower has **no keystore yet**, so this is a clean decision — see
-the warning below. Create one *once*:
+Output: `android/app/build/outputs/bundle/release/app-release.aab`, ~10.0 MB,
+signed with `META-INF/UPLOAD.{SF,RSA}`.
 
-```bash
-keytool -genkeypair -v -keystore frosttower-upload.jks \
-  -keyalg RSA -keysize 2048 -validity 10000 -alias upload
-```
+The keystore was created 2026-08-05 and `android/keystore.properties` is wired
+in. **Back up `android/frosttower-upload.jks` and its password off-machine** —
+this project signs locally, so the key really is unrecoverable if lost.
 
-Then wire it into `android/app/build.gradle` via a `signingConfig` reading from
-`keystore.properties` (gitignored), and **back up the .jks and its password
-somewhere you will still have in five years.** Losing it means you can never
-update the app.
+> **Gotcha that cost a build:** write `keystore.properties` **without a UTF-8
+> BOM**. PowerShell's `Set-Content -Encoding utf8` adds one, Java's
+> `Properties.load` reads it as part of the first key, and Gradle fails with
+> `Cannot convert 'null' to File`. Use
+> `[System.IO.File]::WriteAllText($p,$s,(New-Object System.Text.UTF8Encoding $false))`.
 
 Opt in to **Play App Signing** at first upload: Google then holds the real app
 signing key and your .jks is only the *upload* key, which can be reset if lost.

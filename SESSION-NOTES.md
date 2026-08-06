@@ -37,6 +37,23 @@ upload**.
   `store-listing.md`: everything is collected **and shared**, none ephemeral, ad
   data **required** and purchase history **optional**.
 
+**Verification log** — what was actually checked, not assumed. Every one of
+these is re-runnable:
+
+| Claim | Check | Result (2026-08-05) |
+|---|---|---|
+| Suite passes | `node test/serve.js` then `npm test` | `42 passed, 0 failed` — run twice, before and after the RevenueCat key |
+| AAB is signed | list `META-INF/*.{SF,RSA}` in the AAB zip | `META-INF/UPLOAD.SF`, `META-INF/UPLOAD.RSA` (empty before the keystore existed) |
+| AAB size | `Get-Item app-release.aab` | 10,017,837 bytes |
+| Key is real, not a stub | `keytool -list -v -alias upload` | `Owner: CN=Ahmad Essam, O=Ahmad Essam, C=US`, valid to 2053-12-21 |
+| Upload key SHA-1 | same | `8A:24:2C:C5:75:D8:B1:14:9B:4C:46:29:29:90:0B:1E:DE:1B:E8:4F` |
+| RC key reached the bundle | read `assets/public/js/config.js` out of the AAB zip | contains `goog_AmTMmpCjnxrMXGguNLpiuVCsEJG` |
+| Legal pages are live | `Invoke-WebRequest` both URLs | HTTP 200, 6110 and 3822 bytes |
+| No secrets committed | `git diff --cached --name-only` filtered for `*.jks`, `keystore.properties`, `*.aab` | empty on all three commits |
+
+`npx cap sync android` was run before the final `bundleRelease` — **without it
+the AAB ships stale JS** and the RevenueCat key would not have been in it.
+
 **Hard-blocked on the owner (cannot be automated):**
 
 - **AdMob has no account at all.** Signup demands accepting the AdSense Terms of
@@ -86,13 +103,37 @@ upload**.
   passes because the page re-collapses them. Selected sections stop showing
   `n/m data types selected`, which is the tell that a tick registered.
 
-**Next, in order:** AdMob account (owner) → real ad IDs into `config.js` *and*
-the manifest → IARC + Data safety → `cap sync` + rebuild → upload to Closed
-testing → create the 4 products → import them into RevenueCat with entitlements
-→ start the 14-day tester clock.
+> **BACK UP `android/frosttower-upload.jks` AND ITS PASSWORD OFF THIS MACHINE.**
+> The password is only in `android/keystore.properties`, which is gitignored and
+> therefore **not** in the GitHub repo — the repo is public, so it must never go
+> there. This project signs locally: if the disk dies, the app can never be
+> updated again. Play App Signing (opt in at first upload) makes the `.jks` only
+> the *upload* key, which Google can reset — that is the real safety net.
+
+**Next.** Only two things need the owner; everything else can proceed now.
+
+*Needs the owner (both are "accepting a third party's terms"):*
+1. AdMob account → then real App ID + interstitial + rewarded IDs into
+   `www/js/config.js` (`isTest: false`) **and** `AndroidManifest.xml`. The two
+   App IDs must match or the app crashes on launch.
+2. IARC content-rating questionnaire (answers already decided in
+   `store-listing.md`: ads yes, digital purchases yes → expect Everyone/PEGI 3).
+
+*Does not need the owner:*
+3. Data safety step 4 — resume the saved draft, six rows at *Not started*.
+4. `npx cap sync android` + `gradlew bundleRelease` after any config change.
+5. Upload the AAB to **Closed testing** (not Internal — internal does not count
+   toward the 12-tester rule) and opt in to Play App Signing.
+6. Create the four products, set all **Active**, add
+   `ahmadessam1997@gmail.com` to License testing.
+7. Import the products into RevenueCat, one entitlement per product with the
+   same id, plus a `default` offering.
+8. Start the 14-day closed-test clock — it is the only thing setting the launch
+   date, so start it even while ads are still on test IDs.
 
 RevenueCat also still needs a **Google service account JSON** (Play Console →
-Users and permissions) before it can validate real transactions.
+Users and permissions) before it can validate real transactions. The app is
+usable without it; real purchases are not verifiable until it is attached.
 
 ---
 

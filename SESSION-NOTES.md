@@ -1,5 +1,25 @@
 # Session notes
 
+> ## ▶ RESUME HERE (as of 2026-08-06)
+>
+> Everything that can be automated is done. **One owner action unblocks
+> everything else:**
+>
+> 1. **Complete the IARC questionnaire** — Play Console → App content →
+>    Content rating. Answers are already decided in `store-listing.md`:
+>    ads **yes**, digital purchases **yes** → expect Everyone / PEGI 3.
+>    Completing it *is* accepting IARC's Terms of Service, which is why it
+>    cannot be done on your behalf.
+> 2. Then **Publishing overview** (`/publishing`) → **Submit 15 changes for
+>    review**. Everything is already staged; this is one click.
+>
+> After that: build a real 12+ tester list (the current list has 2), then the
+> four in-app products, then RevenueCat entitlements. Detail below.
+>
+> **Still needs the owner separately:** the AdMob account. Until it exists the
+> app ships Google's **test** ad unit IDs — which does *not* block the closed
+> test, so start the test clock regardless.
+
 ## 2026-08-06 (later) — AAB uploaded, closed track fully staged, blocked on IARC
 
 The first AAB is **uploaded and processed**, the closed testing track is

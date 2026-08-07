@@ -45,8 +45,16 @@ contact details** = `ahmadessam1997@gmail.com` + the GitHub Pages site, no phone
 
 **App content is now 10 of 11 complete, and Closed testing is unlocked.**
 
-**Still open:** Content ratings (IARC) only — completing the questionnaire *is*
-agreeing to IARC's Terms of Service, so it needs the owner.
+Also done on 2026-08-06: the **AAB is uploaded** to Closed testing - Alpha
+(build `1 (1.0.0)`), **177 countries** targeted, testers set to the
+`HomeKept Closed Testers` list, feedback channel set, and **15 changes are
+staged** in Publishing overview (`/publishing`).
+
+**Still open — and it now blocks the submission:** Content ratings (IARC).
+Publishing overview refuses to send the 15 staged changes for review with
+"Incomplete content ratings declaration". Completing the questionnaire *is*
+agreeing to IARC's Terms of Service, so it needs the owner. Do that, then hit
+**Submit 15 changes for review**.
 
 ---
 

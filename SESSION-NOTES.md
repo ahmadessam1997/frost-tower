@@ -1,5 +1,70 @@
 # Session notes
 
+## 2026-08-06 (later) — AAB uploaded, closed track fully staged, blocked on IARC
+
+The first AAB is **uploaded and processed**, the closed testing track is
+configured, and **15 changes are staged in Publishing overview**. The submit
+button is blocked by exactly one thing: **Incomplete content ratings
+declaration**. That is the IARC questionnaire, which needs the owner.
+
+**Closed testing - Alpha — 3 of 4 setup steps complete:**
+
+| Step | State |
+|---|---|
+| Create a new release | **Done** — build `1 (1.0.0)`, 9.25 MB download, uploaded from the existing AAB (no rebuild) |
+| Select country | **Done** — all **177** countries/regions targeted, verified after reload |
+| Select testers | **Done** — email list `HomeKept Closed Testers` (2 users), feedback channel `ahmadessam1997@gmail.com` |
+| Send for review | **BLOCKED** on the IARC content rating |
+
+Play Console reported the bundle as: version `1 (1.0.0)`, API levels `24+`,
+target SDK `36`, screen layouts 4, ABIs `All` — matching the build config.
+**Play App Signing was already enabled** ("Releases are signed by Google Play"),
+so there was no opt-in decision to make at first upload.
+
+Release notes were written for `en-US` (first-closed-test blurb, the three
+monetization bullets, and a request to report crashes / purchase problems /
+missing ads).
+
+**The one remaining warning is expected and fine:** "no deobfuscation file
+associated with this App Bundle". This project sets `minifyEnabled false`
+deliberately, so there is no mapping file to upload. Not a problem.
+
+> **The 2-tester list does NOT satisfy the 12-tester rule.** The owner chose to
+> reuse `HomeKept Closed Testers` to get the track live. Production access needs
+> **12 testers opted in for 14 continuous days**, so a real list still has to be
+> built and the clock only starts once the release is actually live.
+
+**How to upload an AAB from here (the file-path trap):** the `file_upload` tool
+only accepts files the session is allowed to read, and
+`D:\Current\Projects\...\app-release.aab` is **not** one of them. Copy it into
+the session scratchpad first and upload from there — verify with `Get-FileHash`
+that the copy is byte-identical before uploading. (`10,017,837` bytes,
+SHA-256 starts `15CF4897B72AD3A8`.)
+
+**Play Console URL corrections** — both of the obvious guesses are wrong:
+
+| Wrong | Right |
+|---|---|
+| `/tracks/closed-testing` | `/closed-testing` (the `/tracks/...` form errors with `490D9AD7`) |
+| `/publishing-overview` | `/publishing` (the `-overview` form bounces to the app list) |
+
+Navigating by clicking the left nav is more reliable than either. The nav needs
+`Test and release` expanded, then `Testing`, then the track.
+
+**Next, in order:**
+
+1. **Owner: complete the IARC questionnaire** (`App content → Content rating`).
+   Answers are already decided in `store-listing.md`: ads **yes**, digital
+   purchases **yes** → expect Everyone / PEGI 3.
+2. Then **Publishing overview → Submit 15 changes for review**. Everything else
+   is already staged and waiting.
+3. Once live, build a real tester list of 12+ and start the 14-day clock.
+4. Then the four in-app products (Play refuses to create them until a
+   BILLING-permission build is on a track — after step 2 that is satisfied),
+   then import them into RevenueCat with one entitlement each.
+
+---
+
 ## 2026-08-06 — Data safety COMPLETE, category + contact details; 10 of 11
 
 App content checklist went **8 of 11 → 10 of 11**. Only **Content rating

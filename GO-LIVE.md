@@ -39,10 +39,14 @@ No, target audience 13-15/16-17/18+, advertising ID = YES (analytics +
 advertising + fraud prevention), government apps = No, financial features = none,
 health features = none.
 
-**Still open:** Content ratings (IARC — completing the questionnaire *is*
-agreeing to IARC's Terms of Service, so it needs the owner) and Data safety
-(**saved as a draft**, steps 1–3 of 5 done; step 4 "Data usage and handling" has
-all six data types at *Not started*).
+Done on 2026-08-06: **Data safety — submitted** (all 5 steps, all six data types
+answered; verified by reload). **App category** = Game / Arcade. **Store Listing
+contact details** = `ahmadessam1997@gmail.com` + the GitHub Pages site, no phone.
+
+**App content is now 10 of 11 complete, and Closed testing is unlocked.**
+
+**Still open:** Content ratings (IARC) only — completing the questionnaire *is*
+agreeing to IARC's Terms of Service, so it needs the owner.
 
 ---
 

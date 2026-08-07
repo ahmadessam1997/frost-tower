@@ -1,62 +1,92 @@
 # Session notes
 
-## 2026-08-06 — Data safety step 4 (4 of 6 rows), interrupted
+## 2026-08-06 — Data safety COMPLETE, category + contact details; 10 of 11
 
-Resumed the saved Data safety draft. Steps 1–3 were verified intact on load
-(deletion URL still populated, all six data types still selected — the
-`Device or other IDs` section reads `check_circle 1/1 data type selected` while
-collapsed, which is how you confirm a collapsed section without expanding it).
+App content checklist went **8 of 11 → 10 of 11**. Only **Content rating
+(IARC)** is left, and that one needs the owner. **Closed testing is now
+unlocked** — the dashboard previously read `lock — To start a closed test,
+finish setting up your game`; it no longer does.
 
-**Step 4 — "Data usage and handling", 4 of 6 rows now Completed:**
+**Data safety — submitted, not just drafted.** Verified by hard-reloading the
+dashboard and seeing `check` against Data safety. Steps 1–3 were intact on
+resume (deletion URL still populated, all six data types still selected — a
+collapsed section reads `check_circle 1/1 data type selected`, which is how you
+confirm one without expanding it).
 
-| Data type | Collected | Shared | Ephemeral | Required? | Purposes (collect = share) |
-|---|---|---|---|---|---|
-| Purchase history | Yes | Yes | No | **Users can choose** | App functionality; Account management |
-| Approximate location | Yes | Yes | No | Required | Advertising or marketing |
-| Crash logs | Yes | Yes | No | Required | Fraud prevention, security and compliance |
-| Diagnostics | Yes | Yes | No | Required | Fraud prevention, security and compliance |
-| App interactions | — | — | — | — | **NOT DONE** — Advertising or marketing; Analytics; Required |
-| Device or other IDs | — | — | — | — | **NOT DONE** — Advertising or marketing; Analytics; Fraud prevention; Required |
+Step 4, "Data usage and handling", all six rows. Every row is Collected **and**
+Shared, and none is ephemeral:
+
+| Data type | Required? | Purposes (collected = shared) |
+|---|---|---|
+| Purchase history | **Users can choose** | App functionality; Account management |
+| Approximate location | Required | Advertising or marketing |
+| Crash logs | Required | Fraud prevention, security and compliance |
+| Diagnostics | Required | Fraud prevention, security and compliance |
+| App interactions | Required | Advertising or marketing; Analytics |
+| Device or other IDs | Required | Advertising or marketing; Analytics; Fraud prevention, security and compliance |
 
 Purchase history is the only **optional** one: the user chooses whether to buy.
 Everything else is ad/SDK-driven and cannot be turned off, so it is *required*.
 
-**Interrupted:** the Claude Chrome extension disconnected mid-way through the
-App interactions dialog. Nothing was lost — that row had not been saved yet, so
-it is still `Not started`.
+**Store settings — also done:**
 
-> **UNVERIFIED AND IMPORTANT:** the four completed rows were saved via each
-> dialog's own **Save**, but the *form* was never committed with **Save draft**
-> before the disconnect. It is not confirmed that they survive a page reload.
-> **First action on resume: reopen step 4 and check whether the four rows still
-> read `Completed`.** If they do, click **Save draft** immediately before doing
-> anything else. If they don't, redo them from the table above.
+- **App category**: App or game = `Game`, Category = `Arcade` (per `store-listing.md`).
+- **Store Listing contact details**: email `ahmadessam1997@gmail.com`, website
+  `https://ahmadessam1997.github.io/frost-tower/`, **phone deliberately blank**.
+  Owner chose these; the email is published publicly on the listing.
 
-**Gotchas found this session (all cost real time):**
+### The expensive lesson: a dialog "Save" is not persistence
 
-- **`Start` opens a dialog that is NOT reliably findable by `[role=dialog]`.**
-  Right after opening, the new dialog may not be in that query yet, while a
-  *stale* dialog from a previously-saved row stays in the DOM at full height
-  (791px) and wins `.pop()`. Twice this made a filler operate on the wrong
-  (already-saved) node while the correct empty dialog sat on screen.
-- **`document.elementFromPoint` is also not safe here** — the stale overlay can
+The first pass through step 4 *looked* finished — all six rows read `Completed`
+— and the step-5 **Save** even reported `saved. Send for review in Publishing
+overview.` But after a reload, **Device or other IDs was back to `Not started`**
+and the dashboard still showed 8 of 11.
+
+What actually happened: the only state that survived was the state as of the
+last **Save draft** click, which had been made when five rows were done. The
+sixth row's dialog-Save, and the step-5 Save, both silently failed to commit it.
+The tell was that step 5 offered **two** enabled `Save` buttons — one belonged to
+a stale, detached dialog — and the click went to the wrong one. On the second
+pass there was exactly **one** enabled `Save`, and it committed.
+
+**Therefore, the rule for this form:** after every individual row, click the
+form-level **Save draft**; then reload the page and re-read the row statuses
+before trusting them. Treat "the row says Completed" as unverified until it has
+survived a reload. `Save draft` disabling itself afterwards is a good signal
+that there is nothing uncommitted.
+
+**Other gotchas (all cost real time):**
+
+- **The dialog cannot be found reliably by `[role=dialog]`.** A freshly opened
+  dialog may not be in that query yet, while a *stale* dialog from a
+  previously-saved row stays in the DOM at full height and wins `.pop()`.
+- **`document.elementFromPoint` is not safe either** — the stale overlay can
   still be the topmost painted element, so hit-testing returned `Purchase
   history` while `App interactions` was visibly on screen.
-- **What actually works:** select by *expected title*. Filter elements to those
-  that are connected, taller than 300px, contain `Is this data collected, shared
-  or both?`, hold a `material-checkbox`, and whose `innerText.split('\n')[0]`
-  equals the data type you just opened; then reduce to the innermost match.
-  **Always assert the resolved dialog's title before ticking anything.**
-- **`input.click()` on the inner `input[type=checkbox]`/`radio` works** and
-  Angular picks it up (as the 2026-08-05 notes said). Plain `.click()` on the
-  `Start`/`Save` buttons also works — the earlier belief that it did not was a
-  misread caused by slicing `document.body.innerText` from the wrong offset.
+- **What works:** the dialog root is `div.popup`. Select
+  `[...document.querySelectorAll('div.popup')]`, keep those that are connected,
+  taller than 300px, contain a `material-checkbox`, and whose
+  `innerText.split('\n')[0]` **equals the data type you just opened**, then
+  `.pop()`. **Always assert the resolved title before ticking anything.**
+- **Selector shape depends on window width.** At ~770px the earlier
+  title-matching selector stopped resolving; the rows are virtualised and simply
+  absent from the DOM until scrolled into view. Resize to ~1600×1000 first.
+- **`input.click()` on the inner `input[type=checkbox]`/`radio` works.** Plain
+  `.click()` on `Start`/`Save` buttons works too — the earlier belief that it
+  did not was a misread caused by slicing `document.body.innerText` from the
+  wrong offset. `row.querySelector('button')` is *not* enough, though: it can
+  grab the section collapse toggle. Match on the button whose text is `Start`.
 - **`Runtime.evaluate` times out at 45s on this page**, but the work usually
-  *completes* anyway — the timeout is the CDP round-trip, not the page. Do not
-  assume failure; re-query state in a fresh short call before redoing anything.
-  Keep each script to roughly one question's worth of clicks.
+  *completes* anyway — the timeout is the CDP round-trip, not the page. Re-query
+  state in a fresh short call before redoing anything. Keep each script to
+  roughly one question's worth of clicks.
 - Play Console threw `An unexpected error has occurred (724AB855)` once when a
   long script raced it. Smaller steps stopped it recurring.
+- **Deep links still bounce** — `publishing-overview` loaded cold dumped us on
+  the app list. Load `app-dashboard` first.
+- The Chrome extension disconnected mid-session. Chrome itself kept the page and
+  all injected `window.__*` helpers alive; bringing the Chrome window to the
+  foreground woke the extension and everything resumed intact.
 
 ---
 

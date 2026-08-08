@@ -1,24 +1,144 @@
 # Session notes
 
-> ## ▶ RESUME HERE (as of 2026-08-06)
+> ## ▶ RESUME HERE (as of 2026-08-08)
 >
-> Everything that can be automated is done. **One owner action unblocks
-> everything else:**
+> **The closed test is LIVE.** Release `1 (1.0.0)` is Active on Closed testing
+> - Alpha in 177 countries. App content is 11 of 11. All four products exist
+> and are Active in Play, and RevenueCat has all four products, four
+> entitlements and a `default` offering.
 >
-> 1. **Complete the IARC questionnaire** — Play Console → App content →
->    Content rating. Answers are already decided in `store-listing.md`:
->    ads **yes**, digital purchases **yes** → expect Everyone / PEGI 3.
->    Completing it *is* accepting IARC's Terms of Service, which is why it
->    cannot be done on your behalf.
-> 2. Then **Publishing overview** (`/publishing`) → **Submit 15 changes for
->    review**. Everything is already staged; this is one click.
+> **Only two things are left, and both need the owner:**
 >
-> After that: build a real 12+ tester list (the current list has 2), then the
-> four in-app products, then RevenueCat entitlements. Detail below.
+> 1. **Build a real tester list of 12+ people.** The track currently uses
+>    `HomeKept Closed Testers`, which has **2** addresses (the owner's public
+>    contact address plus one personal alt — see Settings → Email lists).
+>    Production access needs **12 testers opted in for 14 continuous days** —
+>    that clock is the only thing setting the launch date and it is not
+>    running yet.
+> 2. **AdMob account.** Still does not exist; the app ships Google's **test**
+>    ad unit IDs. Does not block the test, but no revenue until it is real.
 >
-> **Still needs the owner separately:** the AdMob account. Until it exists the
-> app ships Google's **test** ad unit IDs — which does *not* block the closed
-> test, so start the test clock regardless.
+> Optional third: **RevenueCat needs a Google service account JSON** (Play
+> Console → Users and permissions) before it can validate real transactions.
+> Until then every RevenueCat product reads `Store Status: Could not check`,
+> which is expected and harmless.
+
+## 2026-08-08 — IARC done, 16 changes submitted, closed test LIVE, products + RevenueCat wired
+
+The owner explicitly authorised accepting IARC's Terms of Use on their behalf,
+which unblocked everything the previous session was stuck behind.
+
+**Content rating — submitted.** Category `Game`, contact
+`ahmadessam1997@gmail.com`. Every content question answered **No** except
+"purchase or sale of digital goods" = **Yes** → sub-checkbox *Purchases of
+digital goods* only (not cash-convertible rewards, not NFTs), loot boxes
+**No**, player-to-player trading **No**. Resulting ratings:
+
+| Authority | Rating |
+|---|---|
+| ESRB | Everyone |
+| PEGI | PEGI 3 |
+| USK | All ages |
+| ACB (Australia) | General |
+| GRAC (Korea) | All ages |
+| Google Play / IARC Generic | Rated for 3+ |
+| **ClassInd (Brazil)** | **Rated 14+** |
+
+Brazil's 14+ is purely for in-game purchases, not content. Every authority
+tags "Interactive elements: In-game purchases". This matches what
+`store-listing.md` predicted (Everyone / PEGI 3).
+
+**Publishing overview — 16 changes submitted and published.** The batch was
+the closed-testing release `1 (1.0.0)`, 177 countries, the tester list and
+feedback channel, the en-US store listing, content rating, target audience
+13+, privacy policy URL, ads declaration, data safety, health apps, app
+category (Arcade), and a **Google Play Games on PC opt-in** that was on by
+default (left as-is — harmless for an arcade game, but worth knowing it is on).
+Play ran ~14 minutes of "quick checks" first and sent the batch automatically
+when they passed. Verified afterwards: Publishing overview has **no pending
+changes**, and Closed testing - Alpha reads **Active, Latest release 1 (1.0.0),
+177 countries/regions**.
+
+**All four one-time products created and Active** (Play Console → Monetise →
+Products → One-time products, which unlocked the moment the BILLING build was
+on a track):
+
+| Product ID | Purchase option ID | Name | Price | Regions |
+|---|---|---|---|---|
+| `remove_ads` | `remove-ads` | Remove Ads | $2.99 | 173 |
+| `skin_aurora` | `skin-aurora` | Aurora climber | $1.99 | 173 |
+| `skin_golden` | `skin-golden` | Golden Crown climber | $2.99 | 173 |
+| `skin_void` | `skin-void` | Void Walker climber | $2.99 | 173 |
+
+All are purchase type **Buy**, non-consumable by construction, priced in USD
+with Play auto-converting per region (e.g. $2.99 → AUD 4.69 / EUR 3.09 /
+DZD 400). 173 pricing regions, not 177 — pricing regions and distribution
+countries are different lists; this is normal.
+
+**Licence testing** — account-level, Settings → Licence testing. Added the
+`HomeKept Closed Testers` list alongside the existing Investment Tracker list,
+response `RESPOND_NORMALLY`. Verified by reload. That list contains the
+owner's published contact address plus one personal alt, so the owner can make
+test purchases without being charged.
+
+**RevenueCat — fully wired** (project `c9b2848b`, app `appb1be81e0e7`):
+
+- Four products created by hand as **Non-consumable**, Google product
+  identifiers matching Play exactly. `Import Products` was not used — it needs
+  Play API credentials that do not exist yet.
+- Four entitlements with the **same ids** as the products, one product
+  attached to each.
+- Offering `default` ("Frost Tower shop") with **4 packages**, each a *Custom*
+  identifier equal to its product id, each pointing at the matching Play
+  product.
+- Every product shows **`Store Status: Could not check`**. That is expected:
+  RevenueCat has no Google service account JSON, so it cannot query Play.
+  It does not stop the SDK from working, but real transactions are not
+  server-verified until the JSON is attached.
+
+### Gotchas from this session
+
+- **On the IARC questionnaire, `Next` stays disabled until you click `Save`.**
+  Every section read `Completed`, every radio group was answered, and `Next`
+  was still greyed out. Clicking the form-level **Save** ("Your changes have
+  been saved") enabled it immediately. Do not go hunting for a missing answer.
+- **Programmatically clicking a radio can silently drop the answer.** After
+  answering the loot-box question and clicking Next, that group came back
+  *unselected* while its neighbours kept their answers. Re-check every group
+  (`checked` on both inputs of each pair) before clicking Next, and target the
+  **last unanswered group**, not the last radio with a matching label — the
+  questionnaire appends questions to the same page, so "last matching label"
+  drifts onto an already-answered question.
+- **Play Console's account-level Save opens a confirmation dialog** —
+  "Save changes? These changes will affect all of your apps". Three saves
+  appeared to succeed and silently didn't because the dialog was never
+  confirmed. `element.click()` from JS does *not* open that dialog at all;
+  only a real mouse click does. Use the computer tool for Save on
+  Licence testing.
+- **RevenueCat's New Product form resets on first interaction after a
+  navigation.** Typing straight after `navigate` lands nowhere and the product
+  type snaps back to Subscription. Take a screenshot first (which forces a
+  sync), then click, then type — and verify with
+  `[...document.querySelectorAll('input')].map(e=>e.value)` before submitting.
+- **On the RevenueCat offering form, `+ New Package` inserts the empty package
+  at the TOP and scrolls the page.** Fixed coordinates then land on the
+  *previous* package: one round of typing appended `skin_golden` onto the
+  aurora package's identifier, producing `skin_auroraskin_golden`. Re-read the
+  input values after every field, and fix mistakes with `triple_click` +
+  retype (a plain click leaves the old text in place).
+- **Play Console pricing bulk-edit**: `Set prices` → `Bulk edit pricing` →
+  header select-all → `Continue` → a *Set price* dialog. The first click into
+  that dialog's price field only focuses the dialog; the text lands on the
+  second click. Always screenshot to confirm the field is non-empty before
+  clicking Apply.
+- The pricing table's row checkboxes are **virtualised** — the select-all
+  header checkbox is the only checkbox in the DOM until rows are scrolled into
+  view, so `document.querySelectorAll('input[type=checkbox]')` returns 1.
+- `Page.captureScreenshot` timed out on roughly every third call on both
+  sites. Retrying once always worked. One retry after a `zoom` returned a
+  garbled tiled image; a fresh navigation cleared it.
+
+---
 
 ## 2026-08-06 (later) — AAB uploaded, closed track fully staged, blocked on IARC
 

@@ -18,10 +18,11 @@ Fixed values used throughout:
 | Ads | AdMob interstitial (every 3rd run, 90s cooldown) + rewarded (revive / coins) |
 | Java for builds | **21** — `C:\Program Files\Android\Android Studio\jbr` (JDK 17 fails: "invalid source release: 21") |
 
-**Current state (updated 2026-08-05):** code complete and tested (42/42 e2e
-assertions pass), Play Billing 8.3.0 resolved, and a **signed release AAB now
-builds** (10.0 MB). RevenueCat is wired; AdMob still ships Google's **test** ad
-units. Steps 1 and 3 below are the remaining account work.
+**Current state (updated 2026-08-08):** the **closed test is live** — release
+`1 (1.0.0)` is Active on Closed testing - Alpha in 177 countries, app content
+is 11 of 11, all four products are Active, and RevenueCat is fully configured.
+The only remaining work is **12+ real testers** and **AdMob** (step 1), both of
+which need the owner.
 
 Done on 2026-08-05:
 
@@ -47,14 +48,31 @@ contact details** = `ahmadessam1997@gmail.com` + the GitHub Pages site, no phone
 
 Also done on 2026-08-06: the **AAB is uploaded** to Closed testing - Alpha
 (build `1 (1.0.0)`), **177 countries** targeted, testers set to the
-`HomeKept Closed Testers` list, feedback channel set, and **15 changes are
-staged** in Publishing overview (`/publishing`).
+`HomeKept Closed Testers` list, feedback channel set.
 
-**Still open — and it now blocks the submission:** Content ratings (IARC).
-Publishing overview refuses to send the 15 staged changes for review with
-"Incomplete content ratings declaration". Completing the questionnaire *is*
-agreeing to IARC's Terms of Service, so it needs the owner. Do that, then hit
-**Submit 15 changes for review**.
+Done on 2026-08-08 — **the closed test is live**:
+
+| Thing | State |
+|---|---|
+| Content rating (IARC) | **Submitted.** ESRB Everyone · PEGI 3 · USK All ages · ACB General · GRAC All ages · Google Play 3+ · ClassInd 14+ (Brazil rates in-game purchases 14+) |
+| App content | **11 of 11** — nothing needs attention |
+| Publishing overview | **16 changes submitted and published**; no pending changes |
+| Closed testing - Alpha | **Active**, release `1 (1.0.0)`, 177 countries/regions |
+| One-time products | **All four created and Active**, 173 pricing regions each |
+| Licence testing | `HomeKept Closed Testers` added, `RESPOND_NORMALLY` |
+| RevenueCat | 4 products + 4 entitlements (ids match) + `default` offering with 4 packages |
+
+**Still open — both need the owner:**
+
+1. **A real tester list of 12+.** The track uses `HomeKept Closed Testers`,
+   which has **2** addresses. Production access needs 12 testers opted in for
+   **14 continuous days**; that clock has not started.
+2. **AdMob account** (step 1 below). The app still ships Google's test ad unit
+   IDs — no revenue until this is real.
+
+Nice-to-have: a **Google service account JSON** for RevenueCat (step 4.2), so
+it can verify real transactions. Without it every RevenueCat product reads
+`Store Status: Could not check`, which is expected and does not break the SDK.
 
 ---
 
@@ -99,46 +117,49 @@ agreeing to IARC's Terms of Service, so it needs the owner. Do that, then hit
 4. Build a signed AAB (step 6) and upload it to **Closed testing** — not Internal;
    internal does not count toward the 12-tester rule.
 
-## 3. Play Console — products (only AFTER step 2's upload)
+## 3. Play Console — products — ~~TODO~~ **DONE 2026-08-08**
 
-Play refuses to create in-app products until a build carrying
-`com.android.vending.BILLING` exists on a track. That permission is already in
-the manifest via the RevenueCat plugin — verified in the merged manifest — so
-the upload in step 2 unlocks this page.
+All four exist and are **Active** under Monetise → Products →
+**One-time products** (the page unlocked once the BILLING build was on a track):
 
-Monetize → Products → **In-app products** → Create, four times:
+| Product ID | Purchase option ID | Name | Price |
+|---|---|---|---|
+| `remove_ads` | `remove-ads` | Remove Ads | $2.99 |
+| `skin_aurora` | `skin-aurora` | Aurora climber | $1.99 |
+| `skin_golden` | `skin-golden` | Golden Crown climber | $2.99 |
+| `skin_void` | `skin-void` | Void Walker climber | $2.99 |
 
-| Product ID | Name | Price |
-|---|---|---|
-| `remove_ads` | Remove Ads | $2.99 |
-| `skin_aurora` | Aurora climber | $1.99 |
-| `skin_golden` | Golden Crown climber | $2.99 |
-| `skin_void` | Void Walker climber | $2.99 |
+Purchase type **Buy**, priced in USD with Play auto-converting into 173 pricing
+regions. (173, not 177 — pricing regions and distribution countries are
+different lists.)
 
-All four: purchase type **one-time**, **non-consumable**, single purchase option,
-no offers. Set every one **Active** — an inactive id is invisible to the SDK and
-produces a "product not available" error at purchase time.
+**Licence testing** is set: Settings → Licence testing now includes the
+`HomeKept Closed Testers` list (which contains `ahmadessam1997@gmail.com`),
+response `RESPOND_NORMALLY`. That Save opens a *"these changes will affect all
+of your apps"* confirmation — it must be confirmed or the change silently
+reverts.
 
-Then Setup → **License testing** → add `ahmadessam1997@gmail.com` so purchases
-run in test mode without real charges.
+## 4. RevenueCat — ~~TODO~~ **DONE 2026-08-08 except the service account**
 
-## 4. RevenueCat
-
-1. app.revenuecat.com → new project **Frost Tower** → add app → **Google Play
-   Store**, package `com.ahmadessam.frosttower`.
-2. It needs a Google service account with Play access. Play Console → **Users and
-   permissions** → invite the service account, grant *View app information*,
-   *View financial data*, *Manage orders and subscriptions*.
+1. ~~Project + app~~ **DONE** — project `c9b2848b`, app `appb1be81e0e7`.
+2. **STILL TODO — needs the owner.** RevenueCat needs a Google service account
+   with Play access. Play Console → **Users and permissions** → invite the
+   service account, grant *View app information*, *View financial data*,
+   *Manage orders and subscriptions*.
    (On a sibling project the "API access" page never loaded and bounced to the app
    list — Users and permissions worked instead.)
-3. Import all four products.
-4. Create **four entitlements**, each named exactly like its product
-   (`remove_ads`, `skin_aurora`, `skin_golden`, `skin_void`), and attach the
-   matching product to each.
-5. Create an offering `default` and add all four as packages, so the app can read
-   localized prices.
-6. API keys → copy the **public Google** key (`goog_…`) into
-   `www/js/config.js` → `revenueCat.androidApiKey`.
+   Until this exists every RevenueCat product reads
+   **`Store Status: Could not check`** and real transactions are not
+   server-verified. The SDK still works.
+3. ~~Import products~~ **DONE** — created by hand as **Non-consumable** with
+   Google product identifiers matching Play exactly. `Import Products` was not
+   usable: it needs the credentials from step 2.
+4. ~~Four entitlements~~ **DONE** — `remove_ads`, `skin_aurora`, `skin_golden`,
+   `skin_void`, one matching product attached to each.
+5. ~~Offering~~ **DONE** — `default` ("Frost Tower shop"), 4 packages, each a
+   *Custom* identifier equal to its product id.
+6. ~~API key~~ **DONE** — `goog_AmTMmpCjnxrMXGguNLpiuVCsEJG` is already in
+   `www/js/config.js` and verified inside the built AAB.
 
 > The app also falls back to `allPurchasedProductIdentifiers`, so a forgotten
 > entitlement degrades to "still owned" rather than silently revoking a paid
@@ -209,11 +230,16 @@ ad SDK is absent and billing is the mock:
 - **Restore purchases** after uninstalling and reinstalling.
 - Purchases only work on a build installed **from Play**, never a sideloaded one.
 
-## 8. Closed test
+## 8. Closed test — **LIVE, but the clock has not started**
 
-Personal Play accounts need **12+ testers opted in for 14 continuous days**
-before production access. That clock is the only thing setting the launch date,
-so start it the moment step 2's upload is live. A sibling project used
+The track is Active with release `1 (1.0.0)` in 177 countries. What is missing
+is people: personal Play accounts need **12+ testers opted in for 14 continuous
+days** before production access, and the current list
+(`HomeKept Closed Testers`) has **2**.
+
+To start the clock: Play Console → Test and release → Testing → Closed testing
+→ Manage track → **Testers**, or edit the email list at Settings → Email lists.
+Add 12+ real addresses, then send them the opt-in link. A sibling project used
 testerscommunity.com to find testers.
 
 ---

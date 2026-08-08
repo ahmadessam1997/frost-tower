@@ -36,7 +36,23 @@
       interstitialId: 'ca-app-pub-7898882561225435/8592522025', // frost-tower-interstitial
       rewardedId: 'ca-app-pub-7898882561225435/3593290870',     // frost-tower-rewarded (50 snowflakes)
       // true while these are Google's test IDs. Set false with real IDs.
-      isTest: false
+      isTest: false,
+
+      /* Devices that get TEST ads even though the IDs above are real.
+         Every other device still gets real ads — this list only marks
+         these devices, it does not put the app into test mode.
+
+         WHY THIS EXISTS: tapping a real ad on your own device is invalid
+         traffic, and it is the most common way developers get an AdMob
+         account suspended. Put every device you personally test on here.
+
+         HOW TO GET THE VALUE: it is NOT the advertising ID. Install the
+         app on the device, then:
+             adb logcat | grep -i setTestDeviceIds
+         The SDK logs a line containing
+             Arrays.asList("33BE2250B43518CCDA7DE426D04EE231")
+         and that hash is what goes in this array. */
+      testDeviceIds: []
     },
 
     /* ---------------- RevenueCat ----------------

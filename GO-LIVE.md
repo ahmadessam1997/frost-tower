@@ -126,7 +126,39 @@ A build is already live on the closed track, so this is an *update*:
 
 > **Never test real ad units on your own phone.** Clicking your own live ads is
 > the fastest way to get an AdMob account banned. Register your device as a test
-> device in AdMob first.
+> device first — see below.
+
+### E. Register your own devices as test devices
+
+Two independent routes. Do **A** now; **B** is belt-and-braces and rides along
+with the next build.
+
+**Route A — AdMob console. No rebuild, works against any installed build.**
+
+1. On the phone: Settings → Google → All services → **Ads** → *Your advertising
+   ID* (on some Android 13+ builds it is Settings → Privacy → Ads). It looks
+   like `38400000-8cf0-11bd-b23e-10b96e40000d`. If it reports the ID as
+   deleted, re-enable it first — a deleted ID is all zeros and cannot be
+   registered.
+2. AdMob → **Settings** → **Test devices** → Add test device → Android → paste
+   the advertising ID → name it.
+
+**Route B — baked into the app.** Put the device hash in
+`www/js/config.js` → `admob.testDeviceIds`. The value is **not** the
+advertising ID; install the build, then:
+
+```bash
+adb logcat | grep -i setTestDeviceIds
+```
+
+The SDK logs `Arrays.asList("33BE2250B43518CCDA7DE426D04EE231")` — that hash
+goes in the array. Rebuild (bump versionCode) and upload.
+
+> The plugin **ignores `testingDevices` unless `initializeForTesting` is true**
+> (`AdMob.java`: `initializeForTesting ? getArray(...) : EMPTY`). `ads.js` now
+> turns that flag on whenever `testDeviceIds` is non-empty. It is not a global
+> test switch — it only feeds `RequestConfiguration.setTestDeviceIds()`, so
+> listed devices get test ads and everyone else still gets real ones.
 
 ## 2. Play Console — app, listing, and the FIRST upload
 

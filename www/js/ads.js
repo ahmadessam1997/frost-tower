@@ -38,14 +38,30 @@
       }
       self._m = AdMob;
 
+      var testDevices = (Cfg.admob.testDeviceIds || []).filter(Boolean);
+
       return AdMob.initialize({
-        initializeForTesting: !!Cfg.admob.isTest,
+        /* The plugin IGNORES testingDevices unless this flag is true
+           (AdMob.java: initializeForTesting ? getArray(...) : EMPTY), so it
+           has to be on whenever we have a device list — even though the ad
+           unit IDs are real. It is not a global test switch: all it does is
+           feed RequestConfiguration.setTestDeviceIds(), so listed devices
+           get test ads and every other device still gets real ones. */
+        initializeForTesting: !!Cfg.admob.isTest || testDevices.length > 0,
+        testingDevices: testDevices,
         // The game is rated Everyone and appears in family-friendly
         // searches; tagging keeps it out of behaviourally-targeted and
         // age-inappropriate ad inventory.
         tagForChildDirectedTreatment: false,
         tagForUnderAgeOfConsent: false,
-        maxAdContentRating: 'G'
+        /* MUST be one of the plugin's exact enum strings — General,
+           ParentalGuidance, Teen, MatureAudience. This said 'G', which
+           matches no case in the Android switch, so the rating silently
+           stayed UNSPECIFIED and ad requests carried no content cap at all.
+           Harmless while the test ad units were in use (they always serve
+           the same house ads); a real problem the moment real units went
+           live on an Everyone-rated game. */
+        maxAdContentRating: 'General'
       }).then(function () {
         self.available = true;
         self._wireListeners();

@@ -30,6 +30,51 @@
 >
 > **Suite re-verified 2026-08-08 after the AdMob change: `42 passed, 0 failed`.**
 
+## 2026-08-08 (later still) — test-device support, and a real ad-rating bug
+
+Wiring test devices meant reading the plugin source, which turned up a bug
+that had been latent since the ads were written.
+
+### `maxAdContentRating: 'G'` was silently doing nothing
+
+`ads.js` passed `'G'`. The plugin's enum is
+`General | ParentalGuidance | Teen | MatureAudience`, and the Android switch
+(`AdMob.java` `setRequestConfiguration`) has no `'G'` case, so it fell through
+and left `MAX_AD_CONTENT_RATING_UNSPECIFIED`. **Every ad request from this
+Everyone / PEGI 3 game carried no content-rating cap.**
+
+It never showed because Google's test ad units always serve the same benign
+house ads — so this was invisible for as long as `isTest` was true, and became
+real the moment the live ad units shipped in build 2. Fixed to `'General'`.
+
+> Build **2** is in review carrying the bug. Practical exposure is low because
+> the AdMob app is still "Requires review" and probably will not fill, but the
+> fix should go out with the next build rather than waiting.
+
+### Test devices
+
+- `config.js` gains `admob.testDeviceIds: []`.
+- `ads.js` computes `testDevices` and sets
+  `initializeForTesting: !!isTest || testDevices.length > 0`, passing
+  `testingDevices`.
+
+**The flag is not optional.** `AdMob.java` reads
+`initializeForTesting ? call.getArray("testingDevices") : EMPTY_TESTING_DEVICES`,
+so a device list with the flag off is discarded. Verified in the Android source
+before writing the change, because the obvious worry — that the flag forces
+*every* device into test mode — is wrong: all it does is feed
+`RequestConfiguration.setTestDeviceIds()`.
+
+**The two routes use different values.** The AdMob console wants the raw
+**advertising ID**; `testDeviceIds` wants the **hashed** form the SDK prints to
+logcat (`adb logcat | grep -i setTestDeviceIds`). Mixing them up silently does
+nothing.
+
+Route A (AdMob console) needs no rebuild and protects the currently-submitted
+build 2; Route B ships with the next build. Suite still `42 passed, 0 failed`.
+
+---
+
 ## 2026-08-08 (later) — AdMob live, real ad IDs shipped in build 2
 
 Owner created the AdMob account. Everything below followed.

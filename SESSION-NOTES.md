@@ -7,9 +7,10 @@
 > and are Active in Play, and RevenueCat has all four products, four
 > entitlements and a `default` offering.
 >
-> **Three things are left. All three need the owner** — each is either
-> creating an account, accepting a third party's terms, or handling a private
-> key, so none can be automated no matter who asks:
+> **AdMob is now live and wired.** Build `2 (1.0.0)` carries the real ad unit
+> IDs (`isTest: false`) and has been submitted to the closed track.
+>
+> **Three things are left, all owner-only:**
 >
 > 1. **A real tester list of 12+ people.** The track currently uses
 >    `HomeKept Closed Testers`, which has **2** addresses (the owner's public
@@ -17,19 +18,91 @@
 >    Production access needs **12 testers opted in for 14 continuous days** —
 >    that clock is the only thing setting the launch date and it is not
 >    running yet. **This is the critical path.**
-> 2. **AdMob account.** Still does not exist; the app ships Google's **test**
->    ad unit IDs. Does not block the test — costs revenue only.
-> 3. **RevenueCat Google service account JSON.** Until it exists every
->    RevenueCat product reads `Store Status: Could not check` — expected, and
->    it does not break the SDK. Costs server-side purchase verification only.
+> 2. **AdMob payment profile.** The account banner reads *"Payment setup
+>    incomplete… Any apps in review will remain unreviewed until you add your
+>    payment information."* Needs bank/tax details.
+> 3. **RevenueCat Google service account JSON.** The app settings page says
+>    *"Upload your service account credentials file and save in order to
+>    connect to Google."* Until then every product reads
+>    `Store Status: Could not check` — expected, and it does not break the SDK.
+>    Only the Play Console permission grant can be done for you, and only once
+>    you have the service account's email address (see `GO-LIVE.md` step 4.2).
 >
-> For 2 and 3 the *mechanical* halves are already written up and can be done
-> for you: `GO-LIVE.md` step 1C lists the exact four file edits for the AdMob
-> IDs (plus the versionCode bump — a build is already on the track, so the next
-> upload must be versionCode **2**), and step 4.2 splits out the Play Console
-> permission grant, which only needs the service account's email address.
->
-> **Suite re-verified 2026-08-08: `42 passed, 0 failed`.**
+> **Suite re-verified 2026-08-08 after the AdMob change: `42 passed, 0 failed`.**
+
+## 2026-08-08 (later) — AdMob live, real ad IDs shipped in build 2
+
+Owner created the AdMob account. Everything below followed.
+
+**AdMob app + ad units created:**
+
+| Thing | Value |
+|---|---|
+| App | `Frost Tower`, Android, AdMob ref `4844848706` |
+| App ID | `ca-app-pub-7898882561225435~4844848706` |
+| Interstitial | `ca-app-pub-7898882561225435/8592522025` (`frost-tower-interstitial`) |
+| Rewarded | `ca-app-pub-7898882561225435/3593290870` (`frost-tower-rewarded`, reward **50 / snowflakes**) |
+
+**The app had to be registered as NOT listed on a store.** AdMob's "Yes, the
+app is listed on a supported app store" search cannot find
+`com.ahmadessam.frosttower` — that search reads the *public* Play listing, and
+the app is closed-testing only. Registered it unlisted instead; link it to the
+Play listing once it reaches production.
+
+**Four edits + a versionCode bump, then rebuilt and uploaded:**
+
+- `www/js/config.js` — real `appId`, `interstitialId`, `rewardedId`, and
+  `isTest: false`.
+- `android/app/src/main/AndroidManifest.xml` — same app ID in
+  `com.google.android.gms.ads.APPLICATION_ID`. **Verified the two match with a
+  scripted diff** rather than by eye; a mismatch crashes the app at launch.
+- `android/app/build.gradle` — `versionCode` 1 → **2**.
+- `npx cap sync android`, then `gradlew bundleRelease`.
+
+**Verification actually run, not assumed:**
+
+| Claim | Check | Result |
+|---|---|---|
+| Suite still passes | `npm test` | `42 passed, 0 failed` |
+| App IDs match | scripted compare of both files | identical |
+| Synced assets carry real IDs | grep `android/app/src/main/assets/public/js/config.js` | 3 real IDs, `isTest: false` |
+| AAB is signed | list `META-INF/*.{SF,RSA}` in the AAB zip | `UPLOAD.SF`, `UPLOAD.RSA` |
+| Real IDs reached the bundle | read `config.js` out of the AAB zip | 3 real IDs, `isTest: false`, RC key present |
+| Merged manifest | grep release merged manifest | real app ID |
+| AAB size / hash | `Get-FileHash` | 10,017,899 bytes, SHA-256 starts `FBA8F655755F1F22` |
+
+Release `2 (1.0.0)` uploaded, release notes written, **submitted for review**.
+Device support unchanged (0 lost, 0 gained); size delta +137 B. The only
+warning is the expected "no deobfuscation file" one — `minifyEnabled false` is
+deliberate.
+
+> **The owner was warned and chose to ship real ad IDs to the closed test
+> anyway.** The risk is real: the AdMob app shows **"Requires review"** and
+> cannot be reviewed until there is a public store listing, so ads will
+> probably not fill; and any tester who taps an ad generates invalid traffic,
+> which is the classic way to get an AdMob account suspended. The release notes
+> tell testers not to tap ads. **Register your own device as a test device in
+> AdMob before installing this build.**
+
+### Gotchas
+
+- **Release notes are capped at 500 characters per language.** A 649-char note
+  silently disables both `Next` and `Save as draft` and the only tell is a
+  small red `Release note for en-US is too long` under the textarea.
+- **The Angular textarea still needs a real keystroke.** Setting `.value` via
+  the native setter plus an `input` event leaves the field valid-looking but
+  the buttons stay disabled; clicking in, pressing `ctrl+End`, typing a space
+  and backspacing it releases them.
+- **`taskkill` by image name did not stop `test/serve.js`.** The stray server
+  kept port 8123, and the next `node test/serve.js` died with `EADDRINUSE`
+  *after* the suite had already passed against the old instance — which was
+  harmless only because the server reads from disk per request. Kill it by port
+  instead: `Get-NetTCPConnection -LocalPort 8123 -State Listen` → `Stop-Process`.
+- **AdMob's payment profile is a separate blocker** from account creation:
+  "Any apps in review will remain unreviewed until you add your payment
+  information."
+
+---
 
 ## 2026-08-08 — IARC done, 16 changes submitted, closed test LIVE, products + RevenueCat wired
 

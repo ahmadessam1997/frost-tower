@@ -28,12 +28,15 @@
        com.google.android.gms.ads.APPLICATION_ID meta-data, or the app
        crashes on launch. Keep the two in sync. */
     admob: {
-      // ca-app-pub-XXXXXXXXXXXXXXXX~YYYYYYYYYY
-      appId: 'ca-app-pub-3940256099942544~3347511713',   // TEST
-      interstitialId: 'ca-app-pub-3940256099942544/1033173712', // TEST
-      rewardedId: 'ca-app-pub-3940256099942544/5224354917',     // TEST
+      // Real IDs from AdMob → Apps → Frost Tower, 2026-08-08.
+      // App ID is duplicated in AndroidManifest.xml as
+      // com.google.android.gms.ads.APPLICATION_ID — the two MUST match or the
+      // SDK throws at startup and the app crashes on launch.
+      appId: 'ca-app-pub-7898882561225435~4844848706',
+      interstitialId: 'ca-app-pub-7898882561225435/8592522025', // frost-tower-interstitial
+      rewardedId: 'ca-app-pub-7898882561225435/3593290870',     // frost-tower-rewarded (50 snowflakes)
       // true while these are Google's test IDs. Set false with real IDs.
-      isTest: true
+      isTest: false
     },
 
     /* ---------------- RevenueCat ----------------

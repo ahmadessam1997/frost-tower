@@ -31,10 +31,10 @@
         <!-- AdMob application ID. REQUIRED: the Google Mobile Ads SDK throws
              at startup if this is missing, so the app would crash on launch.
              Keep it identical to admob.appId in www/js/config.js.
-             Currently Google's public TEST app id. -->
+             Real AdMob app id, set 2026-08-08. -->
         <meta-data
             android:name="com.google.android.gms.ads.APPLICATION_ID"
-            android:value="ca-app-pub-3940256099942544~3347511713"
+            android:value="ca-app-pub-7898882561225435~4844848706"
         />
     </application>
 

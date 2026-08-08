@@ -7,6 +7,8 @@ Fixed values used throughout:
 
 | Thing | Value |
 |---|---|
+| AdMob app | `Frost Tower` (Android), app id `ca-app-pub-7898882561225435~4844848706`, AdMob app ref `4844848706` |
+| AdMob ad units | interstitial `…/8592522025`, rewarded `…/3593290870` (50 snowflakes) |
 | Play developer account | `ahmadessam1997` — account ID `7599532919585116115` |
 | Play app ID | `4973059284762378472` (created 2026-07-31, **Draft**) |
 | Play console URL | https://play.google.com/console/u/0/developers/7599532919585116115/app/4973059284762378472/app-dashboard |

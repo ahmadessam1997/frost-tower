@@ -62,38 +62,69 @@ Done on 2026-08-08 — **the closed test is live**:
 | Licence testing | `HomeKept Closed Testers` added, `RESPOND_NORMALLY` |
 | RevenueCat | 4 products + 4 entitlements (ids match) + `default` offering with 4 packages |
 
-**Still open — both need the owner:**
+**Still open — all three need the owner, because all three are either creating
+an account, accepting a third party's terms, or handling a private key:**
 
-1. **A real tester list of 12+.** The track uses `HomeKept Closed Testers`,
-   which has **2** addresses. Production access needs 12 testers opted in for
-   **14 continuous days**; that clock has not started.
-2. **AdMob account** (step 1 below). The app still ships Google's test ad unit
-   IDs — no revenue until this is real.
+| # | Item | Why it needs you | Blocks what |
+|---|---|---|---|
+| 1 | **12+ testers** (step 8) | Real people's email addresses | **The launch date.** The 14-day clock is not running. |
+| 2 | **AdMob account** (step 1) | Creates an account, accepts AdSense ToS, fixes a payment country permanently | Revenue only. App ships test ad IDs and works fine. |
+| 3 | **RevenueCat service account** (step 4.2) | Produces a private key with access to your Play financial data | Server-side purchase verification only. |
 
-Nice-to-have: a **Google service account JSON** for RevenueCat (step 4.2), so
-it can verify real transactions. Without it every RevenueCat product reads
-`Store Status: Could not check`, which is expected and does not break the SDK.
+Item 1 is the critical path — 2 and 3 can happen any time before production.
+Steps 1C/1D and the Play Console half of 4.2 are mechanical and can be done for
+you the moment you hand over the IDs / the service account email.
+
+**Verified 2026-08-08:** `npm test` → **42 passed, 0 failed**.
 
 ---
 
 ## 1. AdMob
 
-1. admob.google.com → Apps → Add app → Android → *No, it's not on Google Play yet*
-   (you can link it to the Play listing later).
-2. Name it **Frost Tower**. Copy the **App ID** (`ca-app-pub-…~…`).
-3. Ad units → Create:
-   - **Interstitial**, name `frost-tower-interstitial` → copy the unit ID.
-   - **Rewarded**, name `frost-tower-rewarded` → copy the unit ID. Set the reward
-     to **50 / snowflakes** to match the in-app copy.
-4. Paste all three into `www/js/config.js` → `admob`, and set `isTest: false`.
-5. Paste the **App ID** a second time into
-   `android/app/src/main/AndroidManifest.xml`
-   (`com.google.android.gms.ads.APPLICATION_ID`). The two must match — the SDK
-   throws at startup if the manifest one is missing or malformed, crashing the app.
+**This step needs the owner.** Signup creates an account in your name, accepts
+the AdSense Terms of Service, and fixes a payment country Google says cannot be
+changed later. Do parts A and B yourself; part C is a mechanical edit anyone
+can run once the three IDs exist.
 
-> **Do not test real ad units on your own phone.** Clicking your own live ads is
+### A. Create the account and the app (owner)
+
+1. admob.google.com → Apps → Add app → Android → the app **is** on Google Play
+   now, so you can link it to `com.ahmadessam.frosttower` directly.
+2. Name it **Frost Tower**. Copy the **App ID** (`ca-app-pub-…~…`).
+
+### B. Create the two ad units (owner)
+
+- **Interstitial**, name `frost-tower-interstitial` → copy the unit ID.
+- **Rewarded**, name `frost-tower-rewarded` → copy the unit ID. Set the reward
+  to **50 / snowflakes** to match the in-app copy.
+
+### C. Wire them in — exactly four edits
+
+| # | File | What changes |
+|---|---|---|
+| 1 | `www/js/config.js` line 32 | `admob.appId` → real `ca-app-pub-…~…` |
+| 2 | `www/js/config.js` lines 33–34 | `interstitialId`, `rewardedId` → real unit IDs |
+| 3 | `www/js/config.js` line 36 | `isTest: true` → **`false`** |
+| 4 | `android/app/src/main/AndroidManifest.xml` line 37 | `android:value` → the **same** app ID as edit 1 |
+
+Edits 1 and 4 must match exactly. The SDK throws at startup if the manifest one
+is missing or malformed, which **crashes the app on launch**.
+
+### D. Rebuild and re-upload
+
+A build is already live on the closed track, so this is an *update*:
+
+1. **Bump `versionCode` to `2`** in `android/app/build.gradle` line 22. Play
+   rejects a duplicate versionCode outright.
+2. `npx cap sync android` — **without this the AAB ships stale JS** and the new
+   ad IDs will not be in it.
+3. `export JAVA_HOME="C:/Program Files/Android/Android Studio/jbr"` then
+   `cd android && ./gradlew bundleRelease`.
+4. Upload the new AAB to Closed testing - Alpha and submit for review.
+
+> **Never test real ad units on your own phone.** Clicking your own live ads is
 > the fastest way to get an AdMob account banned. Register your device as a test
-> device in AdMob first, or keep the test IDs until release.
+> device in AdMob first.
 
 ## 2. Play Console — app, listing, and the FIRST upload
 
@@ -142,15 +173,29 @@ reverts.
 ## 4. RevenueCat — ~~TODO~~ **DONE 2026-08-08 except the service account**
 
 1. ~~Project + app~~ **DONE** — project `c9b2848b`, app `appb1be81e0e7`.
-2. **STILL TODO — needs the owner.** RevenueCat needs a Google service account
-   with Play access. Play Console → **Users and permissions** → invite the
-   service account, grant *View app information*, *View financial data*,
-   *Manage orders and subscriptions*.
-   (On a sibling project the "API access" page never loaded and bounced to the app
-   list — Users and permissions worked instead.)
-   Until this exists every RevenueCat product reads
+2. **STILL TODO.** RevenueCat needs a Google service account with Play access.
+   Until it exists every RevenueCat product reads
    **`Store Status: Could not check`** and real transactions are not
-   server-verified. The SDK still works.
+   server-verified. The SDK still works, so this does not block the closed test.
+
+   **Owner does this part** — it produces a private key:
+   - Google Cloud Console → the project behind this Play account → IAM &
+     Admin → Service Accounts → **Create service account**.
+   - Keys → Add key → **JSON** → download it. *This file is a credential: it
+     grants access to your Play financial data. Do not commit it, do not paste
+     it into chat.*
+   - RevenueCat → Project settings → Apps → Frost Tower (Play Store) → upload
+     that JSON.
+
+   **The Play Console half can be done for you** once you have the service
+   account's email address (`…@….iam.gserviceaccount.com`): Play Console →
+   **Users and permissions** → Invite user → that email → grant *View app
+   information*, *View financial data*, *Manage orders and subscriptions*.
+   (On a sibling project the "API access" page never loaded and bounced to the
+   app list — Users and permissions worked instead.)
+
+   Google takes up to ~24h to propagate the permissions before RevenueCat
+   stops erroring.
 3. ~~Import products~~ **DONE** — created by hand as **Non-consumable** with
    Google product identifiers matching Play exactly. `Import Products` was not
    usable: it needs the credentials from step 2.

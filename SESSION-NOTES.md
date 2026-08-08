@@ -7,21 +7,29 @@
 > and are Active in Play, and RevenueCat has all four products, four
 > entitlements and a `default` offering.
 >
-> **Only two things are left, and both need the owner:**
+> **Three things are left. All three need the owner** — each is either
+> creating an account, accepting a third party's terms, or handling a private
+> key, so none can be automated no matter who asks:
 >
-> 1. **Build a real tester list of 12+ people.** The track currently uses
+> 1. **A real tester list of 12+ people.** The track currently uses
 >    `HomeKept Closed Testers`, which has **2** addresses (the owner's public
 >    contact address plus one personal alt — see Settings → Email lists).
 >    Production access needs **12 testers opted in for 14 continuous days** —
 >    that clock is the only thing setting the launch date and it is not
->    running yet.
+>    running yet. **This is the critical path.**
 > 2. **AdMob account.** Still does not exist; the app ships Google's **test**
->    ad unit IDs. Does not block the test, but no revenue until it is real.
+>    ad unit IDs. Does not block the test — costs revenue only.
+> 3. **RevenueCat Google service account JSON.** Until it exists every
+>    RevenueCat product reads `Store Status: Could not check` — expected, and
+>    it does not break the SDK. Costs server-side purchase verification only.
 >
-> Optional third: **RevenueCat needs a Google service account JSON** (Play
-> Console → Users and permissions) before it can validate real transactions.
-> Until then every RevenueCat product reads `Store Status: Could not check`,
-> which is expected and harmless.
+> For 2 and 3 the *mechanical* halves are already written up and can be done
+> for you: `GO-LIVE.md` step 1C lists the exact four file edits for the AdMob
+> IDs (plus the versionCode bump — a build is already on the track, so the next
+> upload must be versionCode **2**), and step 4.2 splits out the Play Console
+> permission grant, which only needs the service account's email address.
+>
+> **Suite re-verified 2026-08-08: `42 passed, 0 failed`.**
 
 ## 2026-08-08 — IARC done, 16 changes submitted, closed test LIVE, products + RevenueCat wired
 

@@ -19,7 +19,7 @@ android {
         targetSdkVersion rootProject.ext.targetSdkVersion
         // Bump versionCode by +1 for EVERY Play upload, including re-uploads
         // to the same track. Play rejects a duplicate versionCode outright.
-        versionCode 3
+        versionCode 4
         versionName "1.0.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {

@@ -39,8 +39,19 @@ function ok(name, cond, detail) {
     if (r.status() >= 400 && !ignorable.test(r.url())) consoleErrors.push('HTTP ' + r.status() + ' ' + r.url());
   });
 
-  await page.goto(URL, { waitUntil: 'networkidle0' });
-  await page.evaluate(() => new Promise(r => setTimeout(r, 500)));
+  /* 'domcontentloaded' + an explicit settle, NOT 'networkidle0'.
+     networkidle0 waits for a 500ms window with zero in-flight requests and
+     it stopped ever firing on this machine: every run died with "Navigation
+     timeout of 30000ms exceeded" while the page was demonstrably fine — a
+     probe using the same launch showed the app booted with zero pending
+     requests. It failed identically on unmodified code, so it was the
+     heuristic, not the app. 'load' hung too. The page is local static files
+     with no external subresources, so domcontentloaded plus a fixed settle
+     is both sufficient and deterministic. The three page.reload() calls
+     below were changed for the same reason — they were the last thing still
+     timing out after the goto was fixed. */
+  await page.goto(URL, { waitUntil: 'domcontentloaded' });
+  await page.evaluate(() => new Promise(r => setTimeout(r, 1200)));
 
   /* ---------------- 1. boot ---------------- */
   console.log('\n1. Boot');
@@ -186,7 +197,8 @@ function ok(name, cond, detail) {
   /* ---------------- 8. persistence ---------------- */
   console.log('\n8. Persistence');
   const beforeReload = await page.evaluate(() => JSON.parse(JSON.stringify(FTSave.data)));
-  await page.reload({ waitUntil: 'networkidle0' });
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await page.evaluate(() => new Promise(r => setTimeout(r, 1200)));
   await page.evaluate(() => new Promise(r => setTimeout(r, 600)));
   const afterReload = await page.evaluate(() => JSON.parse(JSON.stringify(FTSave.data)));
   ok('owned skins survive reload',
@@ -201,7 +213,8 @@ function ok(name, cond, detail) {
   /* ---------------- 9. corrupt-save resilience ---------------- */
   console.log('\n9. Resilience');
   await page.evaluate(() => localStorage.setItem('ft.save', '{not json at all'));
-  await page.reload({ waitUntil: 'networkidle0' });
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await page.evaluate(() => new Promise(r => setTimeout(r, 1200)));
   await page.evaluate(() => new Promise(r => setTimeout(r, 600)));
   ok('corrupt save falls back to defaults instead of locking up',
      await page.evaluate(() => FTSave.loaded && FTSave.owns('frost') && FTSave.data.coins === 0));
@@ -212,7 +225,8 @@ function ok(name, cond, detail) {
   /* ---------------- 10. legacy save migration ---------------- */
   console.log('\n10. v1 save migration');
   await page.evaluate(() => { localStorage.clear(); localStorage.setItem('ftb', '720'); });
-  await page.reload({ waitUntil: 'networkidle0' });
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await page.evaluate(() => new Promise(r => setTimeout(r, 1200)));
   await page.evaluate(() => new Promise(r => setTimeout(r, 600)));
   ok('v1 high score carried over', await page.evaluate(() => FTSave.data.best === 720),
      await page.evaluate(() => String(FTSave.data.best)));

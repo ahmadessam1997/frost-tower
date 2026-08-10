@@ -66,21 +66,53 @@
       if (!Purchases) {
         self.state = 'unavailable';
         self.lastError = 'Store plugin missing';
+        // This branch used to be silent, which made a disabled shop
+        // indistinguishable from a rejected configure() in logcat.
+        console.warn('[billing] Purchases plugin not registered. Capacitor.Plugins =',
+                     Object.keys((global.Capacitor && global.Capacitor.Plugins) || {}).join(','));
         return Promise.resolve(self.state);
       }
       self._p = Purchases;
 
-      return Purchases.configure({ apiKey: key })
-        .then(function () { return self.refresh(); })
-        .then(function () {
+      /* configure() is annotated RETURN_NONE in the Android plugin
+         (PurchasesPlugin.kt), so it returns undefined — NOT a promise.
+         Chaining .then() off it threw
+             TypeError: Purchases.configure(...).then is not a function
+         synchronously inside init(), which rejected the whole boot chain in
+         game.js. That left state at its initial 'unavailable' (so every
+         premium button was disabled) AND meant Ads.init() never ran. One
+         wrong assumption, both SDKs dead. Verified on an emulator. */
+      try {
+        Purchases.configure({ apiKey: key });
+      } catch (err) {
+        self.state = 'unavailable';
+        self.lastError = (err && err.message) || 'Store configure failed';
+        console.warn('[billing] configure threw:', err);
+        return Promise.resolve(self.state);
+      }
+
+      /* getCustomerInfo IS a promise and is the first real round-trip to
+         RevenueCat, so it doubles as the readiness probe. Using it directly
+         rather than refresh() matters: refresh() swallows its own errors,
+         which would report 'ready' even when the store is unreachable and
+         break the fail-closed guarantee. */
+      return self._p.getCustomerInfo()
+        .then(function (res) {
+          self._applyCustomerInfo(res && res.customerInfo);
           self.state = 'ready';
           return self.loadPrices();
         })
-        .then(function () { return self.state; })
+        .then(function () {
+          console.info('[billing] state=' + self.state +
+                       ' prices=' + JSON.stringify(self.prices) +
+                       ' owned=' + JSON.stringify(self.entitlements));
+          return self.state;
+        })
         .catch(function (err) {
           self.state = 'unavailable';
           self.lastError = (err && err.message) || 'Store unavailable';
-          console.warn('[billing] configure failed:', err);
+          console.warn('[billing] configure failed:', err && (err.message || err),
+                       'code=', err && err.code);
           return self.state;
         });
     },

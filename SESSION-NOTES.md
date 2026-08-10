@@ -7,8 +7,10 @@
 > and are Active in Play, and RevenueCat has all four products, four
 > entitlements and a `default` offering.
 >
-> **AdMob is now live and wired.** Build `2 (1.0.0)` carries the real ad unit
-> IDs (`isTest: false`) and has been submitted to the closed track.
+> **Build `4 (1.0.0)` fixes the bug that made purchases AND ads dead in every
+> earlier build** (`Purchases.configure()` returns void, not a promise — see
+> the 2026-08-09 entry). Submitted for review. AdMob is live and wired with
+> real ad unit IDs (`isTest: false`).
 >
 > **Three things are left, all owner-only:**
 >
@@ -29,6 +31,86 @@
 >    you have the service account's email address (see `GO-LIVE.md` step 4.2).
 >
 > **Suite re-verified 2026-08-08 after the AdMob change: `42 passed, 0 failed`.**
+
+## 2026-08-09 — THE bug: one TypeError killed both purchases AND ads
+
+Reported symptom was "in-game purchases not working, can't click the buttons".
+Root cause found on an emulator in one log line:
+
+```
+[boot] TypeError: Purchases.configure(...).then is not a function
+```
+
+**`PurchasesPlugin.kt:94` annotates `configure` as `RETURN_NONE`**, so it
+returns `undefined`, not a promise. `billing.js` chained `.then()` off it,
+which threw *synchronously* inside `init()` and rejected the whole boot chain
+in `game.js`. Consequences:
+
+- `Billing.state` never moved off its initial `'unavailable'`, so
+  `shop.js:143` (`btn.disabled = !Billing.isReady()`) disabled every premium
+  button. The shop was working exactly as designed; nothing had configured it.
+- **`Ads.init()` never ran at all** — it sat after billing in the same chain.
+  So there were no ads either, of any kind, in builds 1, 2 and 3.
+
+Checked every plugin method the app calls: `configure` is the **only**
+`RETURN_NONE` one. Everything else is `RETURN_PROMISE`.
+
+### Three fixes
+
+1. **billing.js** — `configure()` is now called synchronously, and
+   `getCustomerInfo()` is the readiness probe. Deliberately *not* `refresh()`,
+   which swallows its own errors and would report `ready` against an
+   unreachable store, breaking the fail-closed guarantee.
+2. **game.js** — the two SDKs now start with `Promise.all` and never wait on
+   each other. Isolation alone was not enough: on an offline device
+   `getOfferings()` never settles, so ads stayed dead behind a *slow* billing
+   call even with errors caught. They had to be decoupled in time, not just
+   in error handling.
+3. **A self-inflicted one.** The boot helper was first written as
+   `function step(label, fn)` — but `game.js:157` already defines
+   `function step(dt)`, the physics step called by the game loop. The second
+   declaration wins the hoist, so **the game loop called the boot helper and
+   the climber never moved**. Renamed to `bootStep`. Caught only because the
+   suite's climb assertion failed; bisecting against stashed baseline proved
+   it was mine.
+
+### The e2e suite was broken, and it was the harness
+
+Every run died with `Navigation timeout of 30000ms exceeded` — including on
+**unmodified baseline code**, which is what proved it was not the change. A
+throwaway probe with an identical Puppeteer launch showed the app booting fine
+with **zero pending requests**.
+
+Cause: `waitUntil: 'networkidle0'` simply stopped firing on this machine.
+`'load'` hung too. Switched the `goto` and all three `page.reload()` calls to
+`domcontentloaded` plus a fixed settle. `index.html` pulls only local scripts
+and no external subresources, so this is both sufficient and deterministic.
+Suite restored: **42 passed, 0 failed.**
+
+> Filtering test output through `grep -E "FAIL|passed|HARNESS"` hid that the
+> suite was actually progressing further after each fix. The reload timeout at
+> line 196 was invisible for several iterations because the PASS lines were
+> filtered out. Read the tail of the real output.
+
+### Verified on device, not assumed
+
+| Claim | Evidence |
+|---|---|
+| configure no longer throws | logcat shows `pluginId: Purchases, methodName: getCustomerInfo` — never reached before |
+| billing reaches `ready` | `getOfferings` is called, and `loadPrices()` only runs after `state='ready'` |
+| ads no longer blocked | logcat shows `pluginId: AdMob, methodName: initialize` — absent in every earlier run |
+| fixes are in the shipped AAB | read `billing.js`/`game.js` back out of the AAB zip |
+
+Shipped as **build 4 (1.0.0)**, submitted for review.
+
+**Emulator caveats:** `Pixel_Play` has no network (`ping` → *Network is
+unreachable*), so `ready` was reached without a live RevenueCat round-trip,
+and purchases themselves still cannot be exercised there — Play Billing needs
+an app installed *by Play* under a licensed tester account. Also, leaving the
+emulator running starves the timing-sensitive physics test; shut it down
+before running `npm test`.
+
+---
 
 ## 2026-08-08 (later still) — test-device support, and a real ad-rating bug
 

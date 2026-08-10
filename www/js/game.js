@@ -471,21 +471,49 @@ reset();
 Shop.init(shopClosed);
 requestAnimationFrame(loop);
 
-Save.load().then(function () {
+/* Each SDK is isolated. A billing failure used to reject this whole chain,
+   which silently skipped Ads.init() as well — one TypeError in billing.init
+   took out purchases AND ads at once. Wrapping each step means the worst a
+   broken SDK can do now is disable itself. */
+/* NOT named step() — there is already a step(dt) physics function above,
+   and a second function declaration silently wins the hoist, so the game
+   loop ends up calling this instead and the climber never moves. */
+function bootStep(label, fn) {
+  return Promise.resolve()
+    .then(fn)
+    .catch(function (e) { console.warn('[boot] ' + label + ' failed:', e); });
+}
+
+Save.load().catch(function (e) {
+  console.warn('[boot] save load failed:', e);
+}).then(function () {
   best = Save.data.best;
   updHud();
   refreshMenuWallet();
   Shop.reconcileMilestones();
-  return Billing.init();
-}).then(function () {
-  Shop.reconcileEntitlements();
-  Ads.setRemoveAds(Billing.owns('remove_ads'));
-  return Ads.init();
+
+  /* The two SDKs start together and never wait on each other. Chaining them
+     meant a slow billing call delayed ads indefinitely — on an offline
+     device getOfferings() simply never settles, and ads stayed dead even
+     though nothing had actually failed. Isolation alone was not enough;
+     they had to be decoupled in time as well. */
+  var billingReady = bootStep('billing', function () {
+    return Billing.init();
+  }).then(function () {
+    return bootStep('entitlements', function () {
+      Shop.reconcileEntitlements();
+      // Safe to apply after Ads.init(): shouldShowInterstitial() re-checks
+      // this flag at show time, so at worst one preload is wasted.
+      Ads.setRemoveAds(Billing.owns('remove_ads'));
+      if (Shop.isOpen()) Shop.render();
+    });
+  });
+
+  var adsReady = bootStep('ads', function () { return Ads.init(); });
+
+  return Promise.all([billingReady, adsReady]);
 }).then(function () {
   if (Shop.isOpen()) Shop.render();
-}).catch(function (e) {
-  /* Never let a store/ads failure stop the game from being playable. */
-  console.warn('[boot]', e);
 });
 
 })();

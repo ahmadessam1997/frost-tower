@@ -6,6 +6,23 @@
 keystore.properties
 android/keystore.properties
 
+# ---- Google service account keys: NEVER commit these ----
+# This repo is PUBLIC. A service account JSON is a private key granting
+# access to the Play developer account's financial data. One was downloaded
+# straight into the repo root on 2026-08-10 (frost-tower-3ca7be6e54e8.json),
+# untracked but unignored — `git add -A` would have published it.
+# Belt and braces: match the Google naming pattern, anything ending in
+# -key/-credentials, and the whole secrets/ dir.
+*-*.json.key
+frost-tower-*.json
+homekept-*.json
+investment-*.json
+*service-account*.json
+*serviceaccount*.json
+*-credentials.json
+*-key.json
+secrets/
+
 # ---- build output ----
 node_modules/
 android/build/

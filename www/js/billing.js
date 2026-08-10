@@ -199,6 +199,41 @@
       return next;
     },
 
+    /* Raw SDK errors must never reach a player. RevenueCat surfaces things
+       like "There was a credentials issue" — which is a message to the
+       DEVELOPER about a misconfigured dashboard, not something a paying
+       customer can act on. shop.js toasts res.error directly, so the
+       translation has to happen here.
+
+       Deliberately NOT granting anything on a validation failure: if Play
+       took the payment but RevenueCat could not verify it, the honest answer
+       is "it will unlock once we can confirm it", not a local unlock. That
+       is the fail-closed rule the whole billing module is built on. Play has
+       recorded the purchase, so it comes back on Restore. */
+    _humanError: function (e) {
+      var code = String((e && (e.code || e.errorCode)) || '');
+      var raw  = String((e && e.message) || '');
+      var s = (code + ' ' + raw).toLowerCase();
+
+      // Dashboard/service-account problems: the purchase itself may well
+      // have gone through on the store side.
+      if (/credential|configuration|invalid_credentials/.test(s)) {
+        return 'The store isn’t fully set up yet. If you were charged, ' +
+               'nothing is lost — tap Restore purchases in a little while ' +
+               'and it will unlock.';
+      }
+      if (/network|connect|timeout|host/.test(s)) {
+        return 'Couldn’t reach the store. Check your connection and try again.';
+      }
+      if (/not allowed|billing.?unavailable|purchasenotallowed/.test(s)) {
+        return 'Purchases aren’t available on this device or account.';
+      }
+      if (/not available|productnotavailable|sku|item unavailable/.test(s)) {
+        return 'That item isn’t available right now. Please try again later.';
+      }
+      return 'Purchase failed. Please try again.';
+    },
+
     /* Returns {ok} | {cancelled:true} | {ok:false, error} — never throws,
        and a user cancelling is NOT an error (HomeKept shipped a scary
        "Purchase failed" alert on cancel; see its session notes). */
@@ -254,7 +289,11 @@
           if (e && /already own|already purchased/i.test(e.message || '')) {
             return self.refresh().then(function () { return { ok: true, restored: true }; });
           }
-          return { ok: false, error: (e && e.message) || 'Purchase failed' };
+          // Keep the real text in logcat for whoever is debugging, but hand
+          // the player something they can actually act on.
+          console.warn('[billing] purchase failed:', e && (e.message || e),
+                       'code=', e && (e.code || e.errorCode));
+          return { ok: false, error: self._humanError(e) };
         });
     }
   };

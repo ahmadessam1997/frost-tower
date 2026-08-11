@@ -312,15 +312,50 @@ ad SDK is absent and billing is the mock:
 
 ## 8. Closed test — **LIVE, but the clock has not started**
 
-The track is Active with release `1 (1.0.0)` in 177 countries. What is missing
-is people: personal Play accounts need **12+ testers opted in for 14 continuous
-days** before production access, and the current list
-(`HomeKept Closed Testers`) has **2**.
+The track is Active with release `6 (1.0.0)` in 177 countries (*Available to
+selected testers*, 10 Aug 2026 21:16). Everything technical has shipped. What
+is missing is people: personal Play accounts need **12+ testers opted in for
+14 continuous days** before production access.
+
+Google's own count, from Dashboard → Production:
+
+- ✅ Publish a closed testing release
+- ⬜ At least 12 testers opted-in — **1 currently opted in**
+- ⬜ Run the test with 12+ testers for 14 days
+
+> **Adding an address to the email list does not count.** Two lists are already
+> attached (`HomeKept Closed Testers`, `Investment Tracker Test List`, 2 each)
+> and Google still reads **1**. A tester counts only after they open the join
+> link on the device, accept, and install from Play. The 14 days start from
+> the twelfth *install*, not from any console edit.
 
 To start the clock: Play Console → Test and release → Testing → Closed testing
-→ Manage track → **Testers**, or edit the email list at Settings → Email lists.
-Add 12+ real addresses, then send them the opt-in link. A sibling project used
-testerscommunity.com to find testers.
+→ **Testers**, or edit the email list at Settings → Email lists. Add 12+ real
+addresses, then send them the opt-in link from *How testers join your test* →
+**Copy link** (`play.google.com/apps/testing/com.ahmadessam.frosttower`).
+
+A sibling project used testerscommunity.com. Be aware the production
+application asks how testers were recruited and what feedback they gave;
+reciprocal sign-ups who never played the game are a known rejection reason.
+
+### 8.1 Verify on-device once build 6 lands
+
+Neither of these can be checked without a real device, and both are new in
+build 6:
+
+- A purchase, or **Restore purchases**, completing now that RevenueCat
+  credentials read *Valid*. Only works installed from Play, never sideloaded.
+- **🏆 GLOBAL RANKING** appearing on the menu and a finished run posting the
+  best floor. If the button stays hidden the device has no usable Play Games —
+  that is the intended fail-soft path, not a bug.
+
+### 8.2 If a form asks how the app was built
+
+**Not PWABuilder, not Bubblewrap.** This is **Capacitor 8** — `MainActivity`
+extends `BridgeActivity`, there is no TWA anywhere in the project, and the web
+assets ship inside the AAB rather than being fetched from a server. The
+question exists to apply Play's minimum-functionality policy to website
+shells; it does not apply here.
 
 ---
 

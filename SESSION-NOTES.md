@@ -2,11 +2,13 @@
 
 > ## ▶ RESUME HERE (as of 2026-08-10)
 >
-> **Everything technical is done and shipped.** Build `6 (1.0.0)` is **in
-> review** for Closed testing - Alpha (177 countries), carrying the global
-> leaderboard plus the purchase and ads fixes. App content 11 of 11.
-> RevenueCat credentials **Valid**, all four products **Published**. Play Games
-> services project is **Published** with the leaderboard live.
+> **Everything technical is done and shipped.** Build `6 (1.0.0)` **passed
+> review and is live** — *Available to selected testers*, released 10 Aug
+> 21:16, Closed testing - Alpha, 177 countries. It carries the global
+> leaderboard plus the purchase and ads fixes. Publishing overview is empty:
+> nothing pending, nothing in review. App content 11 of 11. RevenueCat
+> credentials **Valid**, all four products **Published**. Play Games services
+> project **Published** with the leaderboard live.
 >
 > **The only thing left is testers: 1 of 12, and the 14-day clock has not
 > started.** That is the sole gate on production access. Nothing technical
@@ -43,6 +45,68 @@
 > ```
 >
 > Output: `android/app/build/outputs/bundle/release/app-release.aab`.
+
+## 2026-08-10 (last) — build 6 live; production gate measured precisely
+
+Build 6 cleared review the same evening it was submitted. Verified in console,
+not assumed: track reads *Active · Latest release: 6 (1.0.0) · 177
+countries/regions*, the release reads *Available to selected testers ·
+Released on 10 Aug 21:16*, and Publishing overview shows no pending or
+in-review changes.
+
+### The production gate, as Google actually counts it
+
+Dashboard → Production → *Apply for access to production*:
+
+| | Requirement | State |
+|---|---|---|
+| ✅ | Publish a closed testing release | done |
+| ⬜ | At least 12 testers opted-in | **1 tester currently opted in** |
+| ⬜ | Run the test with 12+ testers for 14 days | not started |
+
+**Apply for production** is greyed out.
+
+> ### Being on the email list is NOT opting in
+>
+> The track now has **two** lists attached — `HomeKept Closed Testers` (2) and
+> `Investment Tracker Test List` (2), both borrowed from sibling apps and
+> probably overlapping. Google still counts **1**. A person only counts once
+> they open the join link on the device, accept, and install from Play.
+> Until then the 14-day clock does not tick.
+>
+> So the earliest possible launch is **14 days after the twelfth person
+> actually installs**, not 14 days from any console change. Adding addresses
+> changes nothing on its own — this is the single most misleading number in
+> the whole console.
+
+Opt-in link: Closed testing → **Testers** → *How testers join your test* →
+**Copy link** (Android and web variants). Standard form is
+`play.google.com/apps/testing/com.ahmadessam.frosttower`. Feedback address on
+the track is already set to `ahmadessam1997@gmail.com`.
+
+**Recruiting risk, owner's call.** A testerscommunity.com submit-app page was
+open during this session. Tester-exchange services satisfy the count
+mechanically, but the production application asks how testers were recruited
+and what feedback came back, and Google has been rejecting applications whose
+twelve testers were reciprocal sign-ups that never really played. Twelve real
+people is slower to assemble and much safer for the one thing gating launch.
+
+### For future forms: this is Capacitor, not a TWA
+
+Asked whether the app was built with PWABuilder or Bubblewrap. **No — neither.**
+`MainActivity` extends `com.getcapacitor.BridgeActivity`; there is no
+`TrustedWebActivity`, no `androidbrowserhelper` dependency and no
+`twa-manifest.json`.
+
+PWABuilder and Bubblewrap both emit a **TWA**, a shell that opens Chrome
+against a hosted URL with Digital Asset Links. Capacitor bundles the web
+assets into the AAB (`assets/public/`) and exposes native SDKs over a plugin
+bridge — which is the only reason AdMob, RevenueCat and `LeaderboardPlugin`
+work at all. A TWA could not run any of them.
+
+The question is usually asked to apply Play's minimum-functionality policy
+("is this just a website in a shell?"). It does not apply here: the game runs
+entirely on-device with no server. **Answer forms with "No".**
 
 ## 2026-08-10 (later) — global leaderboard via our own PGS plugin
 

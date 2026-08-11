@@ -7,10 +7,18 @@
 > and are Active in Play, and RevenueCat has all four products, four
 > entitlements and a `default` offering.
 >
-> **Build `4 (1.0.0)` fixes the bug that made purchases AND ads dead in every
-> earlier build** (`Purchases.configure()` returns void, not a promise — see
-> the 2026-08-09 entry). Submitted for review. AdMob is live and wired with
-> real ad unit IDs (`isTest: false`).
+> **Monetization is fully wired as of 2026-08-10.** RevenueCat credentials are
+> **Valid**, all four products read **Published**, ads initialise and preload,
+> and the owner's phone is a registered AdMob test device. Build `5 (1.0.0)`
+> submitted.
+>
+> **The only thing left is testers: 1 of 12, and the 14-day clock has not
+> started.** That is now the sole gate on production access — nothing
+> technical remains.
+>
+> Not yet proven: a purchase completing end to end. Play accepted one earlier
+> but could not validate it; with credentials now valid, **Restore purchases**
+> should pull it through. That is the next thing to check.
 >
 > **Three things are left, all owner-only:**
 >
@@ -31,6 +39,65 @@
 >    you have the service account's email address (see `GO-LIVE.md` step 4.2).
 >
 > **Suite re-verified 2026-08-08 after the AdMob change: `42 passed, 0 failed`.**
+
+## 2026-08-10 — credentials valid, products Published, test device registered
+
+The purchase failure after build 4 was exactly the predicted one: Play accepted
+the purchase, then RevenueCat could not validate it because it had no Google
+service account credentials. The player-visible symptom was a red toast reading
+"credentials issue" — RevenueCat's *developer* message shown to a customer.
+
+**Service account, built from scratch for this app:**
+
+| Thing | Value |
+|---|---|
+| GCP project | `frost-tower` (new — only HomeKept and Investment Tracker existed) |
+| APIs enabled | `androidpublisher.googleapis.com`, `pubsub.googleapis.com` |
+| Service account | `revenuecat-play@frost-tower.iam.gserviceaccount.com` |
+| Play access | Active, never expires, **account-level** (covers all apps) |
+| Permissions | View app info · View app quality · View financial data · Manage orders and subscriptions |
+
+> **A shortcut that was deliberately not taken:** `revenuecat-play@homekept-503903`
+> already had account-wide access, so its key would have worked for Frost Tower
+> immediately. The owner chose a dedicated account — correct, because rotating
+> or revoking HomeKept's credentials would otherwise silently break this app.
+
+**Result, verified:** the credentials badge went from *Credentials need
+attention* to **Valid credentials**, and all four products flipped from
+`Could not check` to **Published**. Propagation took minutes, not the ~24h
+Google warns about — but do not rely on that.
+
+**AdMob test device registered:** `Ahmad phone (Frost Tower testing)`, Android,
+advertising ID `9da360bf-…`. That device now gets test ads against the real ad
+units, so taps on it are safe. The AdMob console route needs the raw
+**advertising ID** (Settings → Google → All services → Ads on the phone); the
+in-code `testDeviceIds` route needs the *hashed* value from logcat. They are
+different values and mixing them up silently does nothing.
+
+**Build 5 shipped** with the human-readable purchase errors.
+
+### The near-miss worth remembering
+
+The downloaded service account JSON landed in the **repo root** —
+`frost-tower-3ca7be6e54e8.json` — untracked but **not** gitignored. This repo is
+public, and `git add -A` (used throughout these sessions) would have committed
+and pushed a private key with access to the Play account's financial data.
+Caught before any commit; verified 0 occurrences across all history. `.gitignore`
+now covers the Google download pattern for every project on this account.
+
+**Do not download credentials into the project folder.** Google's Cloud console
+defaults to the browser download directory; if that is the repo, the key lands
+one `git add` away from being public.
+
+### Gotcha: "Save" on the release review page can produce a *draft*
+
+Build 5's Save created `Draft release: 5 (1.0.0)` instead of staging it, and
+Publishing overview showed **nothing pending** — which looks exactly like a
+successful submit. The fix is Edit release → Next → Save. **Always confirm the
+track shows the build as staged rather than "Draft release" before believing a
+submit worked.**
+
+---
 
 ## 2026-08-09 — THE bug: one TypeError killed both purchases AND ads
 

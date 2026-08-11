@@ -1,44 +1,48 @@
 # Session notes
 
-> ## ▶ RESUME HERE (as of 2026-08-08)
+> ## ▶ RESUME HERE (as of 2026-08-10)
 >
-> **The closed test is LIVE.** Release `1 (1.0.0)` is Active on Closed testing
-> - Alpha in 177 countries. App content is 11 of 11. All four products exist
-> and are Active in Play, and RevenueCat has all four products, four
-> entitlements and a `default` offering.
->
-> **Monetization is fully wired as of 2026-08-10.** RevenueCat credentials are
-> **Valid**, all four products read **Published**, ads initialise and preload,
-> and the owner's phone is a registered AdMob test device. Build `5 (1.0.0)`
-> submitted.
+> **Everything technical is done and shipped.** Build `6 (1.0.0)` is **in
+> review** for Closed testing - Alpha (177 countries), carrying the global
+> leaderboard plus the purchase and ads fixes. App content 11 of 11.
+> RevenueCat credentials **Valid**, all four products **Published**. Play Games
+> services project is **Published** with the leaderboard live.
 >
 > **The only thing left is testers: 1 of 12, and the 14-day clock has not
-> started.** That is now the sole gate on production access — nothing
-> technical remains.
+> started.** That is the sole gate on production access. Nothing technical
+> blocks launch.
 >
-> Not yet proven: a purchase completing end to end. Play accepted one earlier
-> but could not validate it; with credentials now valid, **Restore purchases**
-> should pull it through. That is the next thing to check.
+> **Owner-only, in priority order:**
 >
-> **Three things are left, all owner-only:**
->
-> 1. **A real tester list of 12+ people.** The track currently uses
+> 1. **A real tester list of 12+ people.** The track uses
 >    `HomeKept Closed Testers`, which has **2** addresses (the owner's public
 >    contact address plus one personal alt — see Settings → Email lists).
 >    Production access needs **12 testers opted in for 14 continuous days** —
->    that clock is the only thing setting the launch date and it is not
->    running yet. **This is the critical path.**
-> 2. **AdMob payment profile.** The account banner reads *"Payment setup
->    incomplete… Any apps in review will remain unreviewed until you add your
->    payment information."* Needs bank/tax details.
-> 3. **RevenueCat Google service account JSON.** The app settings page says
->    *"Upload your service account credentials file and save in order to
->    connect to Google."* Until then every product reads
->    `Store Status: Could not check` — expected, and it does not break the SDK.
->    Only the Play Console permission grant can be done for you, and only once
->    you have the service account's email address (see `GO-LIVE.md` step 4.2).
+>    that clock sets the launch date and it is not running. **Critical path.**
+> 2. **Confirm a purchase end to end** once build 6 reaches the device. Play
+>    accepted one earlier but RevenueCat could not validate it; credentials are
+>    valid now, so **Restore purchases** should pull it through.
+> 3. **Confirm the leaderboard** once build 6 lands: the menu should show
+>    **🏆 GLOBAL RANKING**, and a finished run should post the best floor. The
+>    button stays hidden if Play Games is unavailable — that is by design, not
+>    a bug.
+> 4. **AdMob payment profile**, if the banner still reads *"Payment setup
+>    incomplete…"*. Apps in review stay unreviewed until bank/tax details exist.
 >
-> **Suite re-verified 2026-08-08 after the AdMob change: `42 passed, 0 failed`.**
+> **Suite re-verified 2026-08-10 before the build-6 upload: `42 passed, 0 failed`.**
+>
+> ### Build gotcha — `gradlew` needs JDK 21, and the shell default is 17
+>
+> `JAVA_HOME` on this machine points at `C:\Program Files\Microsoft\jdk-17…`,
+> and `:capacitor-android:compileReleaseJavaWithJavac` fails with
+> `error: invalid source release: 21`. Build with Android Studio's bundled JDK:
+>
+> ```powershell
+> $env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr"
+> .\android\gradlew.bat -p .\android bundleRelease
+> ```
+>
+> Output: `android/app/build/outputs/bundle/release/app-release.aab`.
 
 ## 2026-08-10 (later) — global leaderboard via our own PGS plugin
 
@@ -89,18 +93,38 @@ still run — adding the leaderboard did not disturb the other SDKs. Sign-in
 fails on the emulator (no Google account) and degrades silently with no crash,
 which is the intended behaviour. Suite: **42 passed, 0 failed.**
 
-### NOT finished — the leaderboard will not work yet
+### PGS setup — FINISHED 2026-08-10, project is Published
 
-PGS setup is **2 of 6**. Still required, all in Play Console / GCP:
+All console work is done. The checklist reads **4 of 5**; the only open item is
+*"Add the Play Games services SDK to your APK"*, which Google ticks off once it
+sees the SDK in an uploaded build — that is build `6`.
 
-1. **Create OAuth consent screen** in Google Cloud Platform
-2. **Create credentials** — an OAuth client bound to the **app signing** SHA-1
-   (Play App Signing is on, so the *upload* key fingerprint is the wrong one)
-3. **Publish the PGS project** — until then only listed testers can sign in
+**OAuth client** (Google Cloud → `frost-tower` → Clients):
 
-Until those are done `signIn()` will fail and the button will say
-"Sign in to Play Games to rank". The code is complete and safe to ship; it
-simply stays dormant.
+| Thing | Value |
+|---|---|
+| Name / type | `Frost Tower`, **Android** |
+| Client ID | `198265567595-a1e4he8ckk9vsa7m8fuctcbva5ubshi1.apps.googleusercontent.com` |
+| SHA-1 | `FE:31:44:26:31:56:DD:DA:06:84:2C:5F:45:85:C3:E2:93:43:CA:5E` |
+| Package | `com.ahmadessam.frosttower` |
+
+That SHA-1 is the **app signing** fingerprint, not the upload key. Play App
+Signing re-signs every build, so an OAuth client bound to the upload
+fingerprint authenticates nothing and `signIn()` fails silently on real
+devices. Play Console pre-fills the correct value on the Add-credential page —
+copy it from there rather than from `keytool` on the local keystore.
+
+**Publishing the PGS project needed four more fields** that are not part of the
+setup checklist and only surface when you press *Review and publish*:
+Description, Game category (**Arcade**, matching the store listing), Game icon
+(512×512) and Feature graphic (1024×500). `play-assets/play-icon-512.png` and
+`play-assets/feature-graphic.png` were reused as-is. Until those four are
+filled the **Publish** button is greyed out with only a vague *"Some items need
+your attention before publishing"* line to explain why.
+
+> Publishing is partly irreversible: achievements, events and leaderboards
+> **cannot be deleted** afterwards, and *Saved games* cannot be turned off.
+> Saved games was deliberately left **Off** — the game has no cloud save.
 
 ---
 

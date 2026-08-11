@@ -8,7 +8,8 @@
 'use strict';
 
 var Save = window.FTSave, Skins = window.FTSkins, Shop = window.FTShop,
-    Billing = window.FTBilling, Ads = window.FTAds, Cfg = window.FTConfig;
+    Billing = window.FTBilling, Ads = window.FTAds, Cfg = window.FTConfig,
+    Leaderboard = window.FTLeaderboard;
 
 var cv = document.getElementById('c'), ctx = cv.getContext('2d');
 
@@ -145,6 +146,21 @@ document.getElementById('overShopBtn').addEventListener('click', function () {
 });
 document.getElementById('reviveBtn').addEventListener('click', doRevive);
 
+/* Global ranking. The button stays hidden until Leaderboard.init() proves the
+   plugin is present, so it never appears on a device that cannot use it. */
+document.getElementById('menuBoardBtn').addEventListener('click', function () {
+  Leaderboard.show().then(function (r) {
+    if (r && r.ok) return;
+    // Signed-out or unavailable — say so rather than doing nothing visible.
+    var el = document.getElementById('menuBoardBtn');
+    var was = el.textContent;
+    el.textContent = (r && r.error === 'not signed in')
+      ? 'Sign in to Play Games to rank'
+      : 'Ranking unavailable right now';
+    setTimeout(function () { el.textContent = was; }, 2600);
+  });
+});
+
 /* Where the shop returns to depends on where it was opened from. */
 function shopClosed() {
   if (state === 'over') document.getElementById('overOv').classList.remove('hidden');
@@ -275,6 +291,12 @@ function gameOver() {
   Save.data.runs++;
   Save.save();
   best = Save.data.best;
+
+  /* Global leaderboard. Fire-and-forget on purpose: submitFloor() always
+     resolves, and nothing on the game-over screen waits for it. Submits the
+     lifetime best rather than this run's floor, so a player whose device was
+     offline for their best run still gets ranked on the next one. */
+  Leaderboard.submitFloor(Save.data.bestFloor);
   updHud();
 
   var newSkins = Shop.reconcileMilestones();
@@ -511,7 +533,19 @@ Save.load().catch(function (e) {
 
   var adsReady = bootStep('ads', function () { return Ads.init(); });
 
-  return Promise.all([billingReady, adsReady]);
+  var boardReady = bootStep('leaderboard', function () {
+    return Leaderboard.init().then(function () {
+      // Only offer the button once the plugin is genuinely there. Sign-in can
+      // still be refused later; show() handles that and tells the player.
+      if (Leaderboard.available) {
+        document.getElementById('menuBoardBtn').classList.remove('hidden');
+      }
+      // Catch up anyone whose best predates the leaderboard existing.
+      if (Save.data.bestFloor > 0) Leaderboard.submitFloor(Save.data.bestFloor);
+    });
+  });
+
+  return Promise.all([billingReady, adsReady, boardReady]);
 }).then(function () {
   if (Shop.isOpen()) Shop.render();
 });

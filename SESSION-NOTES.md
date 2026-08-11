@@ -40,6 +40,70 @@
 >
 > **Suite re-verified 2026-08-08 after the AdMob change: `42 passed, 0 failed`.**
 
+## 2026-08-10 (later) — global leaderboard via our own PGS plugin
+
+Owner asked for a global high score across all players (highest floor).
+Implemented with Google Play Games Services.
+
+**Why not a third-party plugin.** The only Capacitor 8 option on npm was
+`@idleflowgames/capacitor-play-games` **v0.2.1** — created seven weeks earlier,
+single maintainer, pre-1.0. Owner chose a hand-written plugin instead. Given
+that a single wrong assumption about `Purchases.configure()` killed both ads
+and purchases in builds 1–3, taking an unproven native dependency into a live
+monetized app was not worth the hours saved.
+
+**Play Console setup done:**
+
+| Thing | Value |
+|---|---|
+| PGS project | **`198265567595`** (linked to the `frost-tower` Cloud project) |
+| Leaderboard | "Highest Floor", **`CgkI6_KxzOIFEAIQAA`**, largest-first, tamper protection on |
+
+> Sort order **cannot be changed after publishing** — largest-first is correct
+> for a highest-floor board.
+
+**Code added:**
+
+- `android/.../LeaderboardPlugin.java` — signIn / isSignedIn / submitScore /
+  showLeaderboard. Every method resolves, never rejects, and every one is
+  explicitly `RETURN_PROMISE` (the RevenueCat lesson).
+- `MainActivity.java` — `registerPlugin()` **before** `super.onCreate()`;
+  Capacitor builds its registry during `BridgeActivity.onCreate()`, so a
+  plugin registered after that never reaches `window.Capacitor.Plugins`.
+  `PlayGamesSdk.initialize()` is wrapped in try/catch so a device without Play
+  Games still boots the game.
+- `www/js/leaderboard.js` — fail-soft wrapper, same discipline as `ads.js`.
+- `config.js` gains `leaderboard.projectId` / `highestFloorId`; the project ID
+  is **duplicated** in `strings.xml` because the SDK reads it from the manifest
+  at startup. Same trap as the AdMob app id — a scripted check confirms the two
+  match.
+- Boot: the leaderboard is a **third isolated `bootStep`**, so it cannot delay
+  or break billing or ads.
+- Score is submitted as `Save.data.bestFloor` (lifetime best, not the run's
+  floor) so a player who was offline for their best run still gets ranked.
+
+**Verified on an emulator:** `Registering plugin instance: Leaderboard`, and
+`pluginId: Leaderboard, methodName: signIn` fires at boot. Critically,
+`AdMob.initialize`, `Purchases.configure` and `Purchases.getCustomerInfo` all
+still run — adding the leaderboard did not disturb the other SDKs. Sign-in
+fails on the emulator (no Google account) and degrades silently with no crash,
+which is the intended behaviour. Suite: **42 passed, 0 failed.**
+
+### NOT finished — the leaderboard will not work yet
+
+PGS setup is **2 of 6**. Still required, all in Play Console / GCP:
+
+1. **Create OAuth consent screen** in Google Cloud Platform
+2. **Create credentials** — an OAuth client bound to the **app signing** SHA-1
+   (Play App Signing is on, so the *upload* key fingerprint is the wrong one)
+3. **Publish the PGS project** — until then only listed testers can sign in
+
+Until those are done `signIn()` will fail and the button will say
+"Sign in to Play Games to rank". The code is complete and safe to ship; it
+simply stays dormant.
+
+---
+
 ## 2026-08-10 — credentials valid, products Published, test device registered
 
 The purchase failure after build 4 was exactly the predicted one: Play accepted

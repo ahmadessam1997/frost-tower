@@ -36,6 +36,14 @@
             android:name="com.google.android.gms.ads.APPLICATION_ID"
             android:value="ca-app-pub-7898882561225435~4844848706"
         />
+
+        <!-- Play Games services project ID. Same failure mode as the AdMob id
+             above: the PGS SDK throws at startup if this is absent, so the
+             value lives in strings.xml and is referenced, never inlined. -->
+        <meta-data
+            android:name="com.google.android.gms.games.APP_ID"
+            android:value="@string/game_services_project_id"
+        />
     </application>
 
     <!-- Permissions -->

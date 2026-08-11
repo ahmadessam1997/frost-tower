@@ -65,6 +65,19 @@
       androidApiKey: 'goog_AmTMmpCjnxrMXGguNLpiuVCsEJG'
     },
 
+    /* ---------------- Leaderboard ----------------
+       Google Play Games Services. Both values come from Play Console →
+       Grow users → Play Games services. The project ID is ALSO in
+       android/app/src/main/res/values/strings.xml as
+       game_services_project_id — the SDK reads it from the manifest at
+       startup, so the two must stay in step. */
+    leaderboard: {
+      // Play Games services project ID (same as strings.xml).
+      projectId: '198265567595',
+      // Leaderboard → "Highest Floor", sorted largest-first.
+      highestFloorId: 'CgkI6_KxzOIFEAIQAA'
+    },
+
     /* ---------------- Products ----------------
        Product IDs must match Play Console exactly, and be imported into
        RevenueCat with an entitlement of the SAME id attached.

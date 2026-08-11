@@ -4,4 +4,9 @@
     <string name="title_activity_main">Frost Tower</string>
     <string name="package_name">com.ahmadessam.frosttower</string>
     <string name="custom_url_scheme">com.ahmadessam.frosttower</string>
+    <!-- Play Games services project ID (Play Console -> Grow users ->
+         Play Games services -> Configuration). The PGS SDK reads this at
+         startup via the games_APP_ID meta-data in AndroidManifest.xml and
+         throws if it is missing or malformed. -->
+    <string name="game_services_project_id">198265567595</string>
 </resources>

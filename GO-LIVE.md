@@ -7,6 +7,7 @@ Fixed values used throughout:
 
 | Thing | Value |
 |---|---|
+| Play Games services | PGS project **`198265567595`**, leaderboard "Highest Floor" **`CgkI6_KxzOIFEAIQAA`** (largest-first) |
 | AdMob app | `Frost Tower` (Android), app id `ca-app-pub-7898882561225435~4844848706`, AdMob app ref `4844848706` |
 | AdMob ad units | interstitial `…/8592522025`, rewarded `…/3593290870` (50 snowflakes) |
 | Play developer account | `ahmadessam1997` — account ID `7599532919585116115` |

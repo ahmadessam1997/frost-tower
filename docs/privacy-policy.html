@@ -23,16 +23,18 @@
 
 <h1>Privacy Policy — Frost Tower</h1>
 <p class="meta"><strong>App:</strong> Frost Tower (<code>com.ahmadessam.frosttower</code>)<br>
-<strong>Effective date:</strong> 31 July 2026<br>
+<strong>Effective date:</strong> 2 October 2026<br>
 <strong>Contact:</strong> <a href="mailto:ahmadessam1997@gmail.com">ahmadessam1997@gmail.com</a></p>
 
 <h2>The short version</h2>
 <p>Frost Tower has no accounts and no login. Your climbs, scores, snowflakes and
 unlocked skins are stored <strong>on your device only</strong>.</p>
-<p>The game does two things that involve other companies: it <strong>shows ads</strong>
-(Google AdMob) and it <strong>sells optional one-time purchases</strong> (Google Play,
-handled through RevenueCat). Those services receive some data about your device.
-Everything they receive is described below.</p>
+<p>The game does four things that involve other companies: it <strong>shows ads</strong>
+(Google AdMob), it <strong>sells optional one-time purchases</strong> (Google Play,
+handled through RevenueCat), it <strong>measures how the game is played</strong>
+(Google Analytics for Firebase), and it offers an <strong>optional global
+ranking</strong> (Google Play Games). Those services receive some data about your
+device. Everything they receive is described below.</p>
 
 <h2>What is collected, and by whom</h2>
 <table>
@@ -54,12 +56,32 @@ Everything they receive is described below.</p>
         them if you reinstall or change device</td>
   </tr>
   <tr>
+    <td>Gameplay events with no personal details attached: a run started or
+        ended (floor reached, score, length, snowflakes earned), a revive or
+        reward video was offered or used, the shop was opened, a power-up or
+        skin was obtained, a purchase was started or completed, an ad was
+        shown, the rating prompt was answered, a daily mission was completed,
+        the length of your daily streak, and the &ldquo;more games&rdquo; panel
+        being opened or tapped. Sent together with an app-instance
+        ID, the advertising ID, device model, OS version and country.</td>
+    <td>Google Analytics for Firebase</td>
+    <td>To understand how the game is played and where players stop, so it can
+        be balanced and improved, and to measure ad performance</td>
+  </tr>
+  <tr>
+    <td>Your highest floor, linked to your Google Play Games profile &mdash;
+        only if you are signed in to Play Games</td>
+    <td>Google Play Games</td>
+    <td>To place you on the global ranking</td>
+  </tr>
+  <tr>
     <td>Crash and performance diagnostics from the ads SDK</td>
     <td>Google</td>
     <td>To keep the ads SDK working</td>
   </tr>
   <tr>
-    <td>Your high score, floors climbed, snowflake balance and selected skin</td>
+    <td>Your high score, snowflake balance, power-ups, selected skin, daily
+        mission progress and streak</td>
     <td><strong>Nobody. Stays on your device.</strong></td>
     <td>To let you keep playing where you left off</td>
   </tr>
@@ -73,17 +95,27 @@ Everything they receive is described below.</p>
 </div>
 
 <h2>Reward videos are optional</h2>
-<p>Frost Tower shows a full-screen ad between some climbs. It also offers
-<em>optional</em> reward videos that you choose to watch in exchange for
-snowflakes or one revive. You are never forced to watch a reward video, and
-declining one costs you nothing but the reward.</p>
+<p>Frost Tower shows a banner on its menu screens and a full-screen ad between
+some climbs. It also offers <em>optional</em> reward videos that you choose to
+watch in exchange for snowflakes, one revive, or doubling a run's snowflakes.
+You are never forced to watch a reward video, and declining one costs you
+nothing but the reward.</p>
 
 <h2>Removing ads</h2>
-<p>The one-time <strong>Remove Ads</strong> purchase stops the between-climbs ads
-permanently on any device signed in to the same Google Play account. Optional
-reward videos remain available if you still want to earn snowflakes — they are
-never shown unless you tap to watch one. Once ads are removed, the ads SDK is no
-longer asked to load ads.</p>
+<p>The one-time <strong>Remove Ads</strong> purchase removes <strong>every</strong>
+ad permanently on any device signed in to the same Google Play account: the
+banner, the ads between climbs, and the optional reward videos too. Once ads
+are removed, the ads SDK is no longer asked to load ads.</p>
+
+<h2>Notifications</h2>
+<p>Frost Tower can show <strong>one reminder notification</strong> about your
+daily mission, about a day after you last played. It is created and scheduled
+entirely on your device &mdash; no push service is used and nothing is sent to
+us or to anyone else to deliver it. On Android 13 and later the game asks for
+the notification permission only when you claim your first daily-mission
+reward, never at launch. You can refuse, and you can turn the reminder off at
+any time in Android <em>Settings &rarr; Apps &rarr; Frost Tower &rarr;
+Notifications</em>; the game works the same without it.</p>
 
 <h2>Children</h2>
 <p>Frost Tower is not directed at children under 13. The ad SDK is configured to
@@ -97,8 +129,15 @@ contact us at the address above.</p>
       Android <em>Settings → Privacy → Ads</em>. You can delete the advertising ID
       entirely there; ads will still appear but will not be personalised.</li>
   <li><strong>Delete everything stored on the device:</strong> uninstalling
-      Frost Tower erases your scores, snowflakes and unlocked skins permanently.
-      There is no cloud copy for us to keep.</li>
+      Frost Tower erases your scores, snowflakes, power-ups, mission streak and
+      unlocked skins permanently. There is no cloud copy for us to keep.</li>
+  <li><strong>Gameplay analytics:</strong> these are tied to the advertising ID
+      and an app-instance ID, not to your name. Deleting the advertising ID (above)
+      and uninstalling the app cuts the link; to ask for deletion of analytics
+      data, use <a href="delete-data.html">our data deletion page</a>.</li>
+  <li><strong>Global ranking:</strong> your entry can be removed from within the
+      Google Play Games app (<em>Settings &rarr; Delete Play Games account &amp;
+      data</em>).</li>
   <li><strong>Purchase records:</strong> these are held by Google Play and
       RevenueCat as proof of purchase. Request deletion at
       <a href="delete-data.html">our data deletion page</a>. Note that deleting
@@ -108,13 +147,16 @@ contact us at the address above.</p>
 
 <h2>Data retention</h2>
 <p>We operate no servers and keep no database of our own. Retention is governed
-by the processors: Google's advertising data retention policy for ad data, and
-RevenueCat's for purchase records. Uninstalling the app removes all on-device
+by the processors: Google's advertising data retention policy for ad data,
+Google Analytics for Firebase's retention setting for gameplay events (2 to 14 months depending on our Google Analytics setting),
+and RevenueCat's for purchase records. Uninstalling the app removes all on-device
 data immediately.</p>
 
 <h2>Third-party policies</h2>
 <ul>
   <li><a href="https://policies.google.com/technologies/ads">Google AdMob / advertising</a></li>
+  <li><a href="https://firebase.google.com/support/privacy">Google Analytics for Firebase</a></li>
+  <li><a href="https://support.google.com/googleplay/answer/9041705">Google Play Games</a></li>
   <li><a href="https://www.revenuecat.com/privacy">RevenueCat</a></li>
   <li><a href="https://policies.google.com/privacy">Google Play</a></li>
 </ul>

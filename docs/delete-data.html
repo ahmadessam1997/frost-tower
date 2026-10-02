@@ -21,7 +21,7 @@
 
 <h1>Delete your Frost Tower data</h1>
 <p class="meta"><strong>App:</strong> Frost Tower (<code>com.ahmadessam.frosttower</code>)<br>
-<strong>Last updated:</strong> 31 July 2026</p>
+<strong>Last updated:</strong> 2 October 2026</p>
 
 <p>Frost Tower has <strong>no accounts</strong>, so there is no account to delete.
 Here is exactly what exists and how to remove each part.</p>
@@ -44,7 +44,25 @@ We do not store it.</p>
   "Reset advertising ID".
 </div>
 
-<h2>3. Purchase records — request deletion</h2>
+<h2>3. Gameplay analytics — cut the link, or request deletion</h2>
+<p>From version 1.2.0 Frost Tower sends gameplay events (for example "run
+ended" or "daily mission completed") to Google Analytics for Firebase. They are
+held by Google and are tied to an app-instance ID and the advertising ID —
+never to a name, an email address or an account, because the game has none.</p>
+<div class="box">
+  <strong>To cut the link yourself:</strong> delete the advertising ID (step 2)
+  and clear the app's data or uninstall it (step 1). That discards the
+  app-instance ID, so nothing collected afterwards is connected to the earlier
+  events. Events already collected are deleted automatically by Google after
+  the retention period (2 to 14 months depending on our Google Analytics setting).
+</div>
+<p>To ask for earlier deletion, email
+<a href="mailto:ahmadessam1997@gmail.com?subject=Frost%20Tower%20data%20deletion%20request">ahmadessam1997@gmail.com</a>
+with the subject <strong>"Frost Tower data deletion request"</strong>
+<strong>before</strong> you uninstall or clear the app's data. Because the
+events carry no name or email, we can only delete events that can be matched to your installation; we reply within 30 days saying what was deleted.</p>
+
+<h2>4. Purchase records — request deletion</h2>
 <p>If you bought Remove Ads or a premium skin, a record of that purchase is held
 by Google Play and by RevenueCat, tied to an anonymous random ID and to your
 Google Play account.</p>
@@ -75,6 +93,8 @@ confirmation email when it is done.</p>
   <li>On-device data: kept until you uninstall or clear the app's data.</li>
   <li>Purchase records: kept by Google Play and RevenueCat for as long as the
       purchase is restorable, or until you request deletion as above.</li>
+  <li>Gameplay analytics: kept by Google Analytics for Firebase for
+      2 to 14 months depending on our Google Analytics setting, then deleted automatically.</li>
   <li>Advertising data: retained under
       <a href="https://policies.google.com/technologies/ads">Google's advertising policy</a>.</li>
 </ul>

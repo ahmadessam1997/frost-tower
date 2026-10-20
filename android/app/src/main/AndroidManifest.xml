@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8" ?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
     <application
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
@@ -54,4 +55,18 @@
          This permission is exactly why the Play data-safety form can no
          longer say "no data collected" — see privacy-policy.md. -->
     <uses-permission android:name="com.google.android.gms.permission.AD_ID" />
+
+    <!-- Daily-mission reminder (@capacitor/local-notifications). The plugin's
+         own manifest merges in POST_NOTIFICATIONS, RECEIVE_BOOT_COMPLETED and
+         WAKE_LOCK; POST_NOTIFICATIONS is repeated here so the permission the
+         game asks for at runtime is visible in the file people actually read.
+         It is requested from the mission CLAIM button only, never at launch. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!-- The plugin also declares SCHEDULE_EXACT_ALARM. Stripped on purpose:
+         the reminder is scheduled inexact (missions.js passes
+         isExactNotification:false), so the permission would buy nothing and
+         would put an "Alarms & reminders" special-access entry on the app
+         and an exact-alarm question in front of Play review. -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" tools:node="remove" />
 </manifest>

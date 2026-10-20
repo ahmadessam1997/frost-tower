@@ -51,9 +51,9 @@ public class LeaderboardPlugin extends Plugin {
                     call.resolve(result(true, null));
                     return;
                 }
-                // Not authenticated yet — ask once. PGS v2 shows its own UI and
-                // will not prompt again if the player declines, so this cannot
-                // turn into a nag loop.
+                // Not authenticated yet — show the PGS sign-in UI. This DOES
+                // prompt again after a decline, so it is only called from the
+                // GLOBAL RANKING tap, never at boot (boot uses isSignedIn).
                 client.signIn().addOnCompleteListener(t2 -> {
                     signedIn = t2.isSuccessful()
                             && t2.getResult() != null

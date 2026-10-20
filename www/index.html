@@ -21,12 +21,15 @@
     opacity:0;transition:opacity .2s,transform .2s;transform:scale(.8);}
   #combo.show{opacity:1;transform:scale(1);}
 
+  /* --banner-h is set by ads.js while a banner is up. The banner overlays
+     the WebView rather than resizing it, so every card pads itself clear. */
   .overlay{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
     background:rgba(8,12,40,.78);z-index:10;padding:22px;
     padding-top:calc(22px + env(safe-area-inset-top));
-    padding-bottom:calc(22px + env(safe-area-inset-bottom));}
-  .card{background:#fff;border-radius:26px;padding:28px 24px;max-width:340px;width:100%;
-    text-align:center;box-shadow:0 18px 50px rgba(5,8,30,.6);}
+    padding-bottom:calc(22px + env(safe-area-inset-bottom) + var(--banner-h, 0px));}
+  .card{background:#fff;border-radius:26px;padding:24px 22px;max-width:340px;width:100%;
+    text-align:center;box-shadow:0 18px 50px rgba(5,8,30,.6);
+    max-height:100%;overflow-y:auto;touch-action:pan-y;}
   .card h1{font-size:30px;font-weight:900;letter-spacing:-.02em;
     background:linear-gradient(90deg,#38b6ff,#7048e8);-webkit-background-clip:text;
     background-clip:text;color:transparent;margin-bottom:6px;}
@@ -41,6 +44,39 @@
   .btn.reward{background:linear-gradient(180deg,#ffd166,#f0a92b);box-shadow:0 6px 0 #b87c12;
     color:#4a3405;margin-bottom:10px;}
   .btn.reward:active{box-shadow:0 2px 0 #b87c12;}
+  .btn.claim{background:linear-gradient(180deg,#6fe0a8,#2fb574);box-shadow:0 6px 0 #1c8452;
+    margin-bottom:10px;}
+  .btn.claim:active{box-shadow:0 2px 0 #1c8452;}
+  .btn.slim{padding:11px 20px;font-size:14.5px;}
+
+  /* pause button: the HUD ignores pointers, this one chip does not */
+  #hud #pauseBtn{pointer-events:auto;border:none;color:#fff;font-weight:900;font-size:13px;
+    background:rgba(10,16,48,.55);border-radius:20px;padding:6px 12px;letter-spacing:1px;
+    backdrop-filter:blur(4px);}
+  #hud #pauseBtn.hidden{display:none;}
+
+  /* daily mission tile (menu) */
+  .mission{background:#f2f8ff;border:2px solid #d9ebfa;border-radius:18px;padding:11px 13px;
+    margin-bottom:14px;text-align:left;}
+  .mi-head{display:flex;justify-content:space-between;font-size:11px;font-weight:900;
+    letter-spacing:.08em;color:#6c86b3;}
+  .mi-head b{color:#e8742c;letter-spacing:0;}
+  .mi-text{font-size:14.5px;font-weight:800;color:#22284d;margin:4px 0 7px;}
+  .mi-bar{height:6px;background:#dde8f3;border-radius:4px;overflow:hidden;}
+  .mi-bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,#5cc8ff,#2fb574);}
+  .mi-foot{font-size:12px;color:#7b7797;font-weight:700;margin-top:6px;}
+  .mission .btn.claim{margin:9px 0 0;}
+  .nextrun{font-size:12.5px;font-weight:800;color:#2a6f9e;margin:-6px 0 12px;}
+
+  /* more games */
+  .mg-row{display:flex;align-items:center;gap:12px;width:100%;background:#f2f8ff;border:none;
+    border-radius:16px;padding:10px 12px;margin-bottom:10px;text-align:left;}
+  .mg-row:active{background:#e3f0fb;}
+  .mg-row img{width:52px;height:52px;border-radius:12px;flex:0 0 auto;}
+  .mg-row b{display:block;font-size:15px;color:#22284d;}
+  .mg-row span{display:block;font-size:12px;color:#7b7797;line-height:1.35;margin-top:2px;}
+  .mg-row em{margin-left:auto;font-style:normal;font-weight:900;font-size:12px;color:#2e9be6;
+    flex:0 0 auto;}
   .hidden{display:none !important;}
   .stat{font-size:15px;color:#3a3350;margin:4px 0;font-weight:700;}
   .wallet{display:inline-block;background:#eaf6ff;color:#2a6f9e;border-radius:16px;
@@ -58,7 +94,7 @@
   .shop-x{background:rgba(255,255,255,.16);border:none;color:#fff;width:34px;height:34px;
     border-radius:50%;font-size:19px;font-weight:800;line-height:1;}
   .shop-body{flex:1 1 auto;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:16px;
-    padding-bottom:calc(20px + env(safe-area-inset-bottom));}
+    padding-bottom:calc(20px + env(safe-area-inset-bottom) + var(--banner-h, 0px));}
   .skin-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px;}
   .skin-card{background:#fff;border-radius:18px;padding:12px 10px 12px;text-align:center;
     border:2px solid transparent;box-shadow:0 3px 10px rgba(20,40,80,.08);position:relative;}
@@ -84,19 +120,52 @@
   .ra-tile.owned{border-color:#5ecfa0;background:#f2fdf8;}
   .ra-title{font-weight:900;font-size:16px;color:#22284d;}
   .ra-sub{font-size:12.5px;color:#7b7797;line-height:1.45;margin-top:4px;}
+  .pu-tile{display:flex;align-items:center;gap:12px;background:#fff;border-radius:18px;
+    padding:12px 14px;margin-bottom:10px;box-shadow:0 3px 10px rgba(20,40,80,.08);text-align:left;}
+  .pu-icon{font-size:26px;flex:0 0 auto;}
+  .pu-info{flex:1 1 auto;min-width:0;}
+  .pu-name{font-weight:900;font-size:14.5px;color:#22284d;}
+  .pu-name small{font-weight:800;font-size:11.5px;color:#2fb574;margin-left:6px;}
+  .pu-sub{font-size:11.5px;color:#7b7797;line-height:1.35;margin-top:2px;}
+  .pu-tile .skin-btn{width:auto;flex:0 0 auto;padding:9px 14px;}
   .earn-btn{width:100%;margin-top:10px;border:2px dashed #cfd9e8;background:#fff;
     border-radius:18px;padding:13px;font-weight:800;font-size:14px;color:#4a5680;}
   .earn-btn:disabled{opacity:.45;}
   .restore-btn{width:100%;margin-top:14px;background:none;border:none;color:#7b8bb5;
     font-size:13px;font-weight:700;text-decoration:underline;padding:8px;}
   .shop-notice{position:fixed;left:50%;transform:translateX(-50%) translateY(12px);
-    bottom:calc(18px + env(safe-area-inset-bottom));background:#22284d;color:#fff;
+    bottom:calc(18px + env(safe-area-inset-bottom) + var(--banner-h, 0px));background:#22284d;color:#fff;
     padding:11px 20px;border-radius:24px;font-size:13.5px;font-weight:700;
     opacity:0;pointer-events:none;transition:opacity .25s,transform .25s;z-index:20;
     max-width:88%;text-align:center;}
   .shop-notice.show{opacity:1;transform:translateX(-50%) translateY(0);}
   .shop-notice.err{background:#a33049;}
   .shop-foot{font-size:11px;color:#9aa3c0;text-align:center;margin-top:16px;line-height:1.5;}
+
+  /* Short screens (360x640-class phones). With the banner up, the menu
+     card had ~480px for 570px of content, so MORE GAMES / RANKING — and on
+     the game-over card with both video offers, CLIMB AGAIN — sat below
+     the fold of a scrolling card. Tightened until both cards fit whole.
+     Measured on the emulator at 360x640 with a 56px banner (1.2.0 check).
+     Kept LAST in the sheet so it overrides the rules above by source
+     order alone. */
+  @media (max-height:700px){
+    .overlay{padding:12px;padding-top:calc(12px + env(safe-area-inset-top));
+      padding-bottom:calc(10px + env(safe-area-inset-bottom) + var(--banner-h, 0px));}
+    #shopOv{padding:0;}
+    .card{padding:16px 18px;border-radius:22px;}
+    .card h1{font-size:25px;margin-bottom:3px;}
+    .card p{font-size:12.5px;line-height:1.4;margin-bottom:10px;}
+    .wallet{margin-bottom:8px;padding:4px 12px;font-size:13px;}
+    .mission{padding:8px 11px;margin-bottom:10px;}
+    .mi-text{font-size:13.5px;margin:3px 0 5px;}
+    .btn{padding:11px 20px;font-size:15px;}
+    .btn.ghost{padding:8px;font-size:14px;margin-top:7px;}
+    .btn.slim{padding:9px 16px;font-size:13.5px;}
+    .btn.reward,.btn.claim{margin-bottom:8px;}
+    .mission .btn.claim{margin:7px 0 0;}
+    .stat{font-size:14px;margin:2px 0;}
+  }
 </style>
 </head>
 <body>
@@ -105,6 +174,7 @@
   <div id="floorHud">🏔 Floor 0</div>
   <div id="scoreHud">✦ 0</div>
   <div id="bestHud">👑 0</div>
+  <button id="pauseBtn" class="hidden" aria-label="Pause">II</button>
 </div>
 <div id="combo"></div>
 
@@ -113,15 +183,25 @@
   <div class="card">
     <h1>FROST TOWER</h1>
     <div class="wallet" id="menuWallet">❄ 0</div>
-    <p>Climb forever. The frost is rising. ❄️<br><br>
+    <p>Climb forever. The frost is rising. ❄️<br>
     <b>Hold LEFT / RIGHT</b> side of the screen to run.<br>
     You bounce automatically — <b>speed = height</b>.<br>
     Sprint into walls to rebound. Skip floors for combos!</p>
+    <!-- Daily mission. Filled in by game.js from FTMissions.view(). -->
+    <div class="mission hidden" id="missionTile">
+      <div class="mi-head"><span>🎯 DAILY MISSION</span><b id="miStreak"></b></div>
+      <div class="mi-text" id="miText"></div>
+      <div class="mi-bar"><i id="miFill"></i></div>
+      <div class="mi-foot" id="miFoot"></div>
+      <button class="btn claim slim hidden" id="miClaim"></button>
+    </div>
+    <div class="nextrun hidden" id="menuNextRun"></div>
     <button class="btn" id="playBtn">CLIMB!</button>
     <button class="btn ghost" id="menuShopBtn">❄ SHOP &amp; SKINS</button>
     <!-- Hidden until Play Games reports the plugin is actually usable, so
          players on devices without Play Games never see a dead button. -->
     <button class="btn ghost hidden" id="menuBoardBtn">🏆 GLOBAL RANKING</button>
+    <button class="btn ghost hidden" id="menuMoreBtn">🎮 MORE GAMES</button>
   </div>
 </div>
 
@@ -133,10 +213,34 @@
     <div class="stat" id="oCombo"></div>
     <div class="stat" id="oScore"></div>
     <div class="stat" id="oCoins"></div>
+    <div class="stat hidden" id="oMission"></div>
     <p id="oQuip" style="margin-top:12px"></p>
-    <button class="btn reward hidden" id="reviveBtn">▶ WATCH AD · REVIVE</button>
+    <button class="btn claim slim hidden" id="oClaimBtn"></button>
+    <button class="btn reward slim hidden" id="reviveBtn">▶ WATCH AD · REVIVE</button>
+    <button class="btn reward slim hidden" id="doubleBtn">▶ WATCH AD · DOUBLE ❄</button>
+    <div class="nextrun hidden" id="overNextRun" style="margin:2px 0 10px"></div>
     <button class="btn" id="againBtn">CLIMB AGAIN</button>
     <button class="btn ghost" id="overShopBtn">❄ SHOP &amp; SKINS</button>
+  </div>
+</div>
+
+<!-- ---------------- pause ---------------- -->
+<div class="overlay hidden" id="pauseOv">
+  <div class="card">
+    <h1>PAUSED</h1>
+    <p id="pauseInfo"></p>
+    <button class="btn" id="resumeBtn">RESUME</button>
+    <button class="btn ghost" id="endRunBtn">END RUN</button>
+  </div>
+</div>
+
+<!-- ---------------- more games ---------------- -->
+<div class="overlay hidden" id="moreOv">
+  <div class="card">
+    <h1>MORE GAMES</h1>
+    <p id="moreStoreLine">From the maker of Frost Tower. Free on Google&nbsp;Play.</p>
+    <div id="moreList"></div>
+    <button class="btn ghost" id="moreCloseBtn">BACK</button>
   </div>
 </div>
 
@@ -153,6 +257,10 @@
         <h3>Climbers</h3>
         <div class="skin-grid" id="skinGrid"></div>
       </div>
+      <div class="shop-section">
+        <h3>Power-ups · used on your next run</h3>
+        <div id="powerupList"></div>
+      </div>
       <div class="shop-section" id="earnSection">
         <h3>Snowflakes</h3>
         <button class="earn-btn" id="earnCoinsBtn">▶ Watch an ad · +50 ❄</button>
@@ -161,9 +269,10 @@
         <h3>Upgrades</h3>
         <div class="ra-tile" id="removeAdsTile"></div>
         <button class="restore-btn hidden" id="restoreBtn">Restore purchases</button>
+        <button class="restore-btn hidden" id="shopPrivacy">Privacy choices</button>
       </div>
       <div class="shop-foot">
-        Purchases are one-time and tied to your Google&nbsp;Play account.<br>
+        Purchases are one-time and tied to your <span id="shopStoreAcct">Google&nbsp;Play account</span>.<br>
         Reward videos are always optional.
       </div>
     </div>
@@ -172,12 +281,15 @@
 <div class="shop-notice" id="shopNotice"></div>
 
 <script src="js/config.js"></script>
+<script src="js/analytics.js"></script>
 <script src="js/save.js"></script>
 <script src="js/skins.js"></script>
 <script src="js/billing.js"></script>
 <script src="js/ads.js"></script>
 <script src="js/leaderboard.js"></script>
+<script src="js/missions.js"></script>
 <script src="js/shop.js"></script>
+<script src="js/rate.js"></script>
 <script src="js/game.js"></script>
 </body>
 </html>

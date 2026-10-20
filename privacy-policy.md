@@ -14,6 +14,22 @@
 >
 > This file is kept only so the change is visible in the project's history.
 > Everything below describes v1.0 *before* monetization.
+>
+> **1.2.0 (2026-10-02) — what `docs/privacy-policy.html` gained, for the record:**
+> - **Analytics.** Google Analytics for Firebase now receives custom gameplay
+>   events (run start/end, revive/double offered and used, shop, power-ups,
+>   skins, purchases, ads shown, rating prompt, missions, streak). No personal
+>   details; tied to the app-instance ID and advertising ID.
+> - **Notifications.** One daily-mission reminder, scheduled locally on the
+>   device (no push service, nothing leaves the phone). The Android 13
+>   permission is asked only on the first mission claim.
+> - **Remove Ads** removes every ad, reward videos included (true since
+>   1.1.0; the hosted page still said reward videos remained).
+> - **Global ranking** via Google Play Games (in the app since build 6, never
+>   written into the policy).
+> - New on-device data: power-up stock, daily mission progress and streak.
+>
+> The hosted copy only changes when `docs/` is pushed to GitHub Pages.
 
 ---
 

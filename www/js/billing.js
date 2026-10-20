@@ -20,6 +20,15 @@
 
   var Cfg = global.FTConfig;
 
+  /* Everything outside this file uses the game's product ids. The App Store
+     knows Remove Ads as `frosttower_remove_ads`, so ids are translated here
+     and only here: toStore() on the way out (getProducts), fromStore() on
+     everything the SDK reports back (package products, purchased ids).
+     Both are the identity off iOS. Entitlement ids need no mapping: the
+     RevenueCat entitlement stays `remove_ads` on both stores. */
+  function toStore(id) { return Cfg.storeProductId ? Cfg.storeProductId(id) : id; }
+  function fromStore(sid) { return Cfg.productIdFromStore ? Cfg.productIdFromStore(sid) : sid; }
+
   var Billing = {
     state: 'unavailable',
     entitlements: {},   // productId -> true
@@ -53,7 +62,10 @@
         return Promise.resolve(self.state);
       }
 
-      var key = (Cfg.revenueCat.androidApiKey || '').trim();
+      /* Per-platform key (config.js): '' on iOS until the App Store app
+         exists in RevenueCat, which keeps billing failing closed there. */
+      var key = Cfg.revenueCatKey ? Cfg.revenueCatKey()
+                                  : (Cfg.revenueCat.androidApiKey || '').trim();
       if (!key) {
         self.state = 'unavailable';
         self.lastError = 'Store not configured';
@@ -130,22 +142,24 @@
           Object.keys(all).forEach(function (offId) {
             (all[offId].availablePackages || []).forEach(function (pkg) {
               if (pkg.product) {
-                self.prices[pkg.product.identifier] = pkg.product.priceString;
+                var pid = fromStore(pkg.product.identifier);
+                self.prices[pid] = pkg.product.priceString;
                 self._packages = self._packages || {};
-                self._packages[pkg.product.identifier] = pkg;
-                seen[pkg.product.identifier] = true;
+                self._packages[pid] = pkg;
+                seen[pid] = true;
               }
             });
           });
           // Anything not attached to an offering still needs a price.
           var missing = ids.filter(function (id) { return !seen[id]; });
           if (!missing.length) return null;
-          return self._p.getProducts({ productIdentifiers: missing })
+          return self._p.getProducts({ productIdentifiers: missing.map(toStore) })
             .then(function (res) {
               (res.products || []).forEach(function (pr) {
-                self.prices[pr.identifier] = pr.priceString;
+                var pid = fromStore(pr.identifier);
+                self.prices[pid] = pr.priceString;
                 self._storeProducts = self._storeProducts || {};
-                self._storeProducts[pr.identifier] = pr;
+                self._storeProducts[pid] = pr;
               });
             })
             .catch(function (e) { console.warn('[billing] getProducts:', e); });
@@ -177,7 +191,12 @@
           return { ok: true, entitlements: self.entitlements };
         })
         .catch(function (e) {
-          return { ok: false, error: (e && e.message) || 'Restore failed' };
+          /* Never the raw SDK text: offline, RevenueCat's message is
+             "Error performing request.", which tells a player nothing
+             (seen on the 1.2.0 emulator check). */
+          console.warn('[billing] restore failed:', e && (e.message || e),
+                       'code=', e && (e.code || e.errorCode));
+          return { ok: false, error: self._humanError(e, 'restore') };
         });
     },
 
@@ -187,11 +206,12 @@
       if (info) {
         // Entitlements are the documented path...
         var active = (info.entitlements && info.entitlements.active) || {};
-        Object.keys(active).forEach(function (k) { next[k] = true; });
+        Object.keys(active).forEach(function (k) { next[fromStore(k)] = true; });
         // ...but a mis-wired dashboard (product imported, entitlement not
         // attached) would silently strip a paid unlock, so also trust the
         // raw purchase list. Non-consumables never expire, so this is safe.
-        (info.allPurchasedProductIdentifiers || []).forEach(function (pid) {
+        (info.allPurchasedProductIdentifiers || []).forEach(function (sid) {
+          var pid = fromStore(sid);
           if (Cfg.products[pid]) next[pid] = true;
         });
       }
@@ -210,10 +230,19 @@
        is "it will unlock once we can confirm it", not a local unlock. That
        is the fail-closed rule the whole billing module is built on. Play has
        recorded the purchase, so it comes back on Restore. */
-    _humanError: function (e) {
+    _humanError: function (e, what) {
       var code = String((e && (e.code || e.errorCode)) || '');
       var raw  = String((e && e.message) || '');
-      var s = (code + ' ' + raw).toLowerCase();
+      /* RevenueCat's offline error is code 10, message "Error performing
+         request." — the word "network" only appears in readableErrorCode
+         ("NetworkError") and the host name in underlyingErrorMessage, so
+         both are folded in or an offline player is told "Purchase failed". */
+      var d = (e && e.data) || {};
+      var extra = [e && e.readableErrorCode, e && e.underlyingErrorMessage,
+                   d.readableErrorCode, d.readable_error_code,
+                   d.underlyingErrorMessage].filter(Boolean).join(' ');
+      var s = (code + ' ' + raw + ' ' + extra).toLowerCase();
+      var restoring = what === 'restore';
 
       // Dashboard/service-account problems: the purchase itself may well
       // have gone through on the store side.
@@ -231,7 +260,8 @@
       if (/not available|productnotavailable|sku|item unavailable/.test(s)) {
         return 'That item isn’t available right now. Please try again later.';
       }
-      return 'Purchase failed. Please try again.';
+      return restoring ? 'Couldn’t restore purchases. Please try again.'
+                       : 'Purchase failed. Please try again.';
     },
 
     /* Returns {ok} | {cancelled:true} | {ok:false, error} — never throws,
@@ -261,7 +291,7 @@
         if (!sp) {
           // Fetch on demand — one product at a time, because a single
           // inactive id poisons a whole batch query (adaptive-chess).
-          attempt = self._p.getProducts({ productIdentifiers: [productId] })
+          attempt = self._p.getProducts({ productIdentifiers: [toStore(productId)] })
             .then(function (res) {
               var p = (res.products || [])[0];
               if (!p) throw new Error('Product not available: ' + productId);

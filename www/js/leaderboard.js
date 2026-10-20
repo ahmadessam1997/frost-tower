@@ -1,5 +1,5 @@
 /* =====================================================================
-   Frost Tower — global leaderboard (Google Play Games Services)
+   Frost Tower — global leaderboard (Google Play Games Services on Android, Game Center on iOS)
    ---------------------------------------------------------------------
    Ranks players by the highest floor they have ever reached.
 
@@ -17,6 +17,13 @@
 
   var Cfg = global.FTConfig;
 
+  /* The "Highest Floor" board on this platform: the Play Games id, or the
+     Game Center id (config.js leaderboard.ios) on iOS. */
+  function boardId() {
+    var L = Cfg.leaderboard || {};
+    return (Cfg.isIOS && Cfg.isIOS() && L.ios) ? L.ios.highestFloorId : L.highestFloorId;
+  }
+
   var Leaderboard = {
     available: false,
     signedIn: false,
@@ -29,6 +36,10 @@
         console.info('[leaderboard] Browser preview — leaderboard disabled.');
         return Promise.resolve(false);
       }
+      /* Same JS name on both platforms: Android registers
+         LeaderboardPlugin.java (Play Games), iOS registers
+         LeaderboardPlugin.swift (Game Center) with the same methods and
+         resolve shapes. Only the leaderboard id differs (boardId()). */
       var P = global.Capacitor && global.Capacitor.Plugins &&
               global.Capacitor.Plugins.Leaderboard;
       if (!P) {
@@ -40,10 +51,19 @@
       self._p = P;
       self.available = true;
 
-      /* Sign-in is attempted once at boot. PGS v2 is zero-click for players
-         who already use Play Games and shows nothing at all for those who
-         declined before, so this is not a prompt the player has to fight. */
-      return P.signIn()
+      /* Boot only ASKS whether the player is signed in; it never raises the
+         sign-in sheet. PGS v2 runs its own automatic sign-in at launch
+         (zero-click for players who already use Play Games), and
+         isSignedIn() resolves once that attempt has finished.
+
+         This used to call signIn(), on the belief that PGS "will not
+         prompt again if the player declines". The 1.2.0 emulator check
+         showed otherwise: the manual signIn() puts the full-screen
+         "Select a Play Games profile" sheet over the menu on EVERY cold
+         start for a player who cancelled it, offline included. The sheet
+         now only appears when the player taps GLOBAL RANKING (show()
+         below), which is the one moment they have asked for it. */
+      return P.isSignedIn()
         .then(function (r) {
           self.signedIn = !!(r && r.ok);
           if (!self.signedIn) self.lastError = (r && r.error) || 'not signed in';
@@ -68,7 +88,7 @@
       if (!(floor > 0) || floor <= self._submittedBest) return Promise.resolve(false);
       self._submittedBest = floor;
       return self._p.submitScore({
-        leaderboardId: Cfg.leaderboard.highestFloorId,
+        leaderboardId: boardId(),
         score: floor
       }).then(function (r) {
         if (!(r && r.ok)) console.warn('[leaderboard] submit:', r && r.error);
@@ -87,7 +107,7 @@
         return Promise.resolve({ ok: false, error: 'unavailable' });
       }
       var open = function () {
-        return self._p.showLeaderboard({ leaderboardId: Cfg.leaderboard.highestFloorId })
+        return self._p.showLeaderboard({ leaderboardId: boardId() })
           .then(function (r) { return r || { ok: false }; })
           .catch(function (e) { return { ok: false, error: (e && e.message) || 'failed' }; });
       };

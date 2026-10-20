@@ -46,6 +46,132 @@
 >
 > Output: `android/app/build/outputs/bundle/release/app-release.aab`.
 
+## 2026-10-02 — 1.2.0 / versionCode 13: retention + income batch (NOT uploaded, NOT committed)
+
+Debug APK built and the three suites pass (`npm test` 42, `node test/rate-sim.js`
+24, `node test/features-sim.js` 137). Nothing device-tested.
+
+- **Seam ads** — `Ads.showSeamAd()` is now the only full-screen entry point.
+  One cadence (every 3 counted runs + 90 s) decides WHEN; every 3rd seam ad is
+  the rewarded interstitial (`rewardedInterstitialEveryNthAd`). The old
+  every-6 cadence shared the counter the every-3 interstitial reset, so it
+  was unreachable. Counter + seam-ad count persist in the save (`adRuns`,
+  `seamAds`). A revived run now counts as ONE run (it used to tick the run
+  count, the rate prompt and the ad cadence twice).
+- **Boot banner** — raised once ads init resolves (and billing, or 3 s), only
+  on the menu / game-over card. `Save.data.noAds` mirrors Remove Ads so an
+  owner never sees it in the gap. `--banner-h` pads the cards clear of it.
+- **Double snowflakes** (game-over card, once per run, min 5) and **revive
+  from floor 5** (`Cfg.revive.minFloor`).
+- **Power-ups** — Shield 50 ❄, Head start 40 ❄ (floor 15), stock auto-used by
+  the next run. **Decision:** on a head-start run `bestFloor` — the number the
+  global board ranks and the floor milestones unlock on — counts only floors
+  CLIMBED (`maxFloor - startFloor`). Score needs no correction (skipped floors
+  pay nothing). Daily missions DO see the HUD floor, on purpose.
+- **Pause + back** — `@capacitor/app`; HUD button, auto-pause on background,
+  back: prompt/shop/more → close, run → pause, pause → resume, game over →
+  menu, menu → exit.
+- **Daily mission + streak** (`missions.js`), local reminder via
+  `@capacitor/local-notifications`. Permission asked from the CLAIM tap only.
+  **Gotcha:** the plugin defaults `isExactNotification` to TRUE and on
+  Android 12+ `schedule()` then opens the system "Alarms & reminders" page.
+  We pass `false` and strip `SCHEDULE_EXACT_ALARM` in the manifest.
+- **Rate prompt back-off** — 2, then 5 after the first Later, then every 10.
+  `rate.js` also gained an `onChoice` option (analytics). The three games'
+  copies are no longer byte-identical unless re-synced.
+- **Analytics** — `analytics.js` wraps `@capacitor-firebase/analytics`.
+- **More games** — `Cfg.moreGames`; all three siblings are live (Trap Jam flipped to `live:true` on 2026-10-14).
+- `docs/privacy-policy.html` + `store-listing.md` updated; **`docs/` must be
+  pushed** for the hosted policy to change.
+
+## 2026-09-07 (later) — the consent port was incomplete: no way to CHANGE a choice
+
+versionCode 8 shipped `showPrivacyOptions()` in `ads.js` with **nothing
+calling it**. The UMP form therefore appeared once, on first run, and a
+player who consented could never revisit the decision. Google's EU user
+consent policy requires a persistent entry point, so this was half a port,
+not a finished one — caught by grepping Escape for the same symbol and
+finding it wired where Frost's was orphaned.
+
+Escape does it in `shop.js`; Frost now matches, in Frost's own idiom
+(module-private functions and the shared `busy` flag, not Escape's `self`):
+
+- `www/index.html` — `<button class="restore-btn hidden" id="shopPrivacy">`
+  added under Upgrades, beside Restore purchases.
+- `www/js/shop.js` — `el.privacy` cached in `init()`, click wired to a new
+  `openPrivacyOptions()`, and `render()` toggles `hidden` on
+  `Ads.privacyOptionsRequired`.
+
+Two things deliberately copied from Escape's reasoning:
+- **Visibility is gated on `privacyOptionsRequired`, not on `removeAds`.**
+  Buying Remove Ads silences the interstitial, but rewarded videos — and
+  therefore the ad SDK and its consent — remain, so the choice must stay
+  reachable. Google hides the entry point where no form exists, and a dead
+  button is worse than no button.
+- **It does NOT re-render the shop afterwards.** The form changes ad
+  personalisation, not anything the shop displays; a flicker on dismiss
+  would read as a purchase state changing.
+
+**Build:** versionCode 8 -> **9**, versionName 1.0.1 -> **1.0.2**, signed,
+11,348,471 bytes. Verified inside the .aab: button in markup, listener
+wired, toggle present, consent flow intact.
+
+> **Do not upload this while 1.0.1 is in review.** Play will not accept a
+> second production release over one still under review — wait for 1.0.1 to
+> go live (or be rejected), then submit 9.
+
+## 2026-09-07 — UMP consent ported from Escape; versionCode 8 built
+
+Frost was one generation behind Escape on ads: `ads.js` went straight to
+`AdMob.initialize()` with no consent step, so every ad request in the EEA/UK
+went out under an unknown consent state. Escape's flow is now mirrored here
+verbatim.
+
+**Code** — `www/js/ads.js`:
+- `_requestConsent()` runs BEFORE `initialize()` and always resolves. A
+  consent failure must not cost the player their ads or their game.
+- `canRequestAds` (defaults **true**, so a failure degrades to the previous
+  behaviour rather than silently killing ads everywhere) now gates the
+  preload pair. Preloading under REQUIRED-but-unanswered burns a request
+  that returns empty and leaves `_ready` false anyway.
+- `_applyConsent()` and `showPrivacyOptions()` added. The latter is only
+  worth surfacing from the shop when `privacyOptionsRequired` is true —
+  Google hides the entry point otherwise and a dead button is worse.
+
+**Config** — `www/js/config.js` gains `admob.consent { debugGeography: 0,
+enabled: true }`. `debugGeography` is read natively with `call.getInt()`, so
+it is a NUMBER; passing `'EEA'` silently does nothing, the same failure mode
+as the `maxAdContentRating` `'G'` bug fixed earlier.
+
+**Console — both messages created and Published, bound to Frost Tower only:**
+
+| Message | Name | Notes |
+|---|---|---|
+| European regulations | `Frost Tower - EEA/UK consent` | Consent On, Manage options On, **Do not consent On for every country** |
+| US state regulations | `Frost Tower - US states opt-out` | Opt out On |
+
+Publishing the GDPR message required a privacy policy URL against the app,
+which Frost had never had registered — Escape had one, Frost's cell read
+*Add URL*. Set to `https://ahmadessam1997.github.io/frost-tower/privacy-policy.html`
+(the page was already live; only the AdMob registration was missing).
+
+> Neither half works alone. Without the console message the SDK reports no
+> form available; without the code the message is never shown to anyone.
+> That is why Escape did both together and why Frost was inert until now.
+
+**Build:** versionCode 7 -> **8**, versionName 1.0.0 -> **1.0.1**. Synced,
+`bundleRelease` with JDK 21, signed (`UPLOAD.RSA`), 11,348,020 bytes.
+Verified inside the .aab: real app id `ca-app-pub-7898882561225435~4844848706`,
+zero occurrences of the Google test publisher, `isTest:false`,
+`requestConsentInfo` and the `canRequestAds` gate both present.
+
+**Test device — NOT outstanding.** `testDeviceIds` is still `[]` and stays
+that way. The phone is registered account-level (advertising ID
+`9da360bf-4ad0-41a1-b114-588f4f48e2e6`, `Ahmad phone (all apps: ...)`), which
+covers every app under the publisher. Re-verified in the console this
+session. See escape-chambers/GO-LIVE.md step 7.
+
+
 ## 2026-08-10 (last) — build 6 live; production gate measured precisely
 
 Build 6 cleared review the same evening it was submitted. Verified in console,

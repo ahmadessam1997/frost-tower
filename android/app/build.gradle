@@ -19,8 +19,8 @@ android {
         targetSdkVersion rootProject.ext.targetSdkVersion
         // Bump versionCode by +1 for EVERY Play upload, including re-uploads
         // to the same track. Play rejects a duplicate versionCode outright.
-        versionCode 6
-        versionName "1.0.0"
+        versionCode 15
+        versionName "1.2.2"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -68,6 +68,18 @@ dependencies {
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
     androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
     implementation project(':capacitor-cordova-android-plugins')
+
+/* Google Analytics for Firebase.
+
+   Guarded on google-services.json the same way the plugin below is: the file is
+   gitignored-adjacent config, and without it the Firebase initialiser has no
+   project to attach to. Only the BOM and analytics artefact are pulled in --
+   nothing here needs Auth, Firestore or Messaging. This is what feeds AdMob's
+   user metrics (ARPU, retention cohorts, eCPM by cohort). */
+if (file('google-services.json').exists()) {
+    implementation platform('com.google.firebase:firebase-bom:34.18.0')
+    implementation 'com.google.firebase:firebase-analytics'
+}
 }
 
 apply from: 'capacitor.build.gradle'

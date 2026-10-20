@@ -42,7 +42,16 @@
     skin: 'frost',
     owned: ['frost'],     // skin ids unlocked by ANY route (free/milestone/coins/IAP)
     runs: 0,
-    seenShop: false
+    seenShop: false,
+    /* Ad cadence. Lived in memory only, so every cold start began a fresh
+       count and a player with short sessions never reached an ad at all. */
+    adRuns: 0,            // counted runs since the last seam ad
+    seamAds: 0,           // seam ads shown, picks every Nth as rewarded
+    /* Mirror of the remove_ads entitlement, so the boot banner can be
+       withheld before billing has answered. Billing stays the truth. */
+    noAds: false,
+    powerups: { shield: 0, headstart: 0 },   // consumables in stock
+    daily: null           // daily mission + streak, owned by missions.js
   };
 
   var Save = {
@@ -72,11 +81,21 @@
         // Repair anything a bad write or hand-edit could have broken.
         if (!Array.isArray(self.data.owned)) self.data.owned = ['frost'];
         if (self.data.owned.indexOf('frost') < 0) self.data.owned.push('frost');
-        ['best', 'bestFloor', 'coins', 'runs'].forEach(function (k) {
+        ['best', 'bestFloor', 'coins', 'runs', 'adRuns', 'seamAds'].forEach(function (k) {
           var n = Number(self.data[k]);
           self.data[k] = (isFinite(n) && n >= 0) ? Math.floor(n) : 0;
         });
         if (typeof self.data.skin !== 'string') self.data.skin = 'frost';
+        self.data.noAds = self.data.noAds === true;
+        var pu = self.data.powerups;
+        if (!pu || typeof pu !== 'object' || Array.isArray(pu)) pu = {};
+        self.data.powerups = {};
+        ['shield', 'headstart'].forEach(function (k) {
+          var n = Number(pu[k]);
+          self.data.powerups[k] = (isFinite(n) && n > 0) ? Math.floor(n) : 0;
+        });
+        if (!self.data.daily || typeof self.data.daily !== 'object' ||
+            Array.isArray(self.data.daily)) self.data.daily = null;
         self.loaded = true;
         return self.data;
       });

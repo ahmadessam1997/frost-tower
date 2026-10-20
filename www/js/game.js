@@ -9,7 +9,12 @@
 
 var Save = window.FTSave, Skins = window.FTSkins, Shop = window.FTShop,
     Billing = window.FTBilling, Ads = window.FTAds, Cfg = window.FTConfig,
-    Leaderboard = window.FTLeaderboard;
+    Leaderboard = window.FTLeaderboard, Missions = window.FTMissions;
+
+function track(name, params) {
+  if (window.FTAnalytics) window.FTAnalytics.log(name, params);
+}
+function $(id) { return document.getElementById(id); }
 
 var cv = document.getElementById('c'), ctx = cv.getContext('2d');
 
@@ -40,7 +45,9 @@ function resize() {
 addEventListener('resize', resize);
 resize();
 
-/* ---------- state ---------- */
+/* ---------- state ----------
+   'menu' | 'play' | 'pause' | 'over'. step() only advances in 'play', so
+   'pause' freezes the climber, the platforms and the frost in one go. */
 var state = 'menu', best = 0;
 var P, plats, cam, frost, maxFloor, lastFloor, comboTotal, comboStreak, comboTimer,
     score, snow = [], parts = [], shake = 0, tGame = 0;
@@ -48,6 +55,12 @@ var frostY = 99999;
 var revivedThisRun = false;
 var coinsThisRun = 0;
 var graceTimer = 0;          /* post-revive invulnerability to the frost */
+var startFloor = 0;          /* head start: the floor this run began on */
+var shieldActive = false;    /* a Shield is riding along on this run */
+var doubledThisRun = false;  /* the "double snowflakes" video was used */
+var bonusCoins = 0;          /* what that video added, for the card */
+var runCounted = false;      /* this run's first death is already counted */
+var adBusy = false;          /* a rewarded video is in flight */
 
 var SPACING = 78, PW0 = 120;
 function platW(f) { return Math.max(48, PW0 - f * 0.7); }
@@ -59,15 +72,22 @@ function newPlat(f) {
   return { f: f, x: 20 + Math.random() * (W - 40 - w), y: -f * SPACING, w: w, h: 16, type: type,
            dir: Math.random() < .5 ? -1 : 1, sp: 40 + Math.random() * 60, broken: false, tm: 0 };
 }
-function reset() {
-  P = { x: W / 2, y: -20, vx: 0, vy: 0, r: 16, onIce: false };
-  plats = [{ f: 0, x: 0, y: 0, w: W, h: 16, type: 'base' }];
-  for (var f = 1; f <= 30; f++) plats.push(newPlat(f));
-  cam = -H * 0.7; frost = H * 0.6; maxFloor = 0; lastFloor = 0;
+/* start: the floor the run begins on (0, or the head-start floor). The
+   whole tower is simply built from there up — floor numbers, platform
+   widths and the frost's speed all key off the real floor number, so a
+   head start is exactly as hard as having climbed there. */
+function reset(start) {
+  startFloor = start || 0;
+  var baseY = -startFloor * SPACING;
+  P = { x: W / 2, y: baseY - 20, vx: 0, vy: 0, r: 16, onIce: false };
+  plats = [{ f: startFloor, x: 0, y: baseY, w: W, h: 16, type: 'base' }];
+  for (var f = startFloor + 1; f <= startFloor + 30; f++) plats.push(newPlat(f));
+  cam = baseY - H * 0.7; frost = H * 0.6; maxFloor = startFloor; lastFloor = startFloor;
   comboTotal = 0; comboStreak = 0; comboTimer = 0; score = 0; tGame = 0;
   parts = []; shake = 0;
-  frostY = H * 1.4;
+  frostY = baseY + H * 1.4;
   revivedThisRun = false; coinsThisRun = 0; graceTimer = 0;
+  shieldActive = false; doubledThisRun = false; bonusCoins = 0; runCounted = false;
   updHud();
 }
 function updHud() {
@@ -116,25 +136,62 @@ addEventListener('keyup', function (e) {
   if ((e.code === 'ArrowLeft' && dir === -1) || (e.code === 'ArrowRight' && dir === 1)) dir = 0;
 });
 
-/* Leaving the app mid-run (an interstitial, the home button) must not
-   leave a direction stuck on. */
+/* Leaving the app mid-run (the home button, a call, the recents key) must
+   not leave a direction stuck on — and must not let the frost win while
+   nobody is looking, so a run in progress pauses itself. */
 document.addEventListener('visibilitychange', function () {
-  if (document.hidden) { touchStack.length = 0; dir = 0; }
+  if (document.hidden) { touchStack.length = 0; dir = 0; pauseRun(); }
 });
 
 /* ---------- screen wiring ---------- */
 function startRun() {
-  document.getElementById('menu').classList.add('hidden');
-  document.getElementById('overOv').classList.add('hidden');
-  reset();
+  $('menu').classList.add('hidden');
+  $('overOv').classList.add('hidden');
+  /* Down before reset(), not after: the banner overlays the WebView, so a
+     late hide leaves it pinned across the bottom of the first frame of a
+     run - exactly where the next jump is judged from. */
+  Ads.hideBanner();
+
+  /* Power-ups: one of each kind in stock is spent on this run. */
+  var pu = Save.data.powerups, head = 0, shield = false;
+  if (pu.headstart > 0) { pu.headstart--; head = Cfg.powerups.headStartFloor; }
+  if (pu.shield > 0) { pu.shield--; shield = true; }
+  if (head || shield) Save.save();
+
+  reset(head);
+  shieldActive = shield;
+  touchStack.length = 0; dir = 0;
   state = 'play';
+  $('pauseBtn').classList.remove('hidden');
+  track('run_start', { run: Save.data.runs + 1, shield: shield, headstart: !!head });
 }
-document.getElementById('playBtn').addEventListener('click', startRun);
-document.getElementById('againBtn').addEventListener('click', function () {
-  /* The interstitial lands between runs, never during one. */
-  var el = document.getElementById('overOv');
-  el.classList.add('hidden');
-  Ads.showInterstitial().then(startRun);
+$('playBtn').addEventListener('click', startRun);
+$('againBtn').addEventListener('click', function () {
+  /* The ad lands between runs, never during one. Two formats share this
+     ONE slot and never stack: Ads.showSeamAd() decides whether an ad is
+     due at all and which format it is (every Nth is the rewarded
+     interstitial, which hands the player coins). It always resolves, with
+     shown:false when it declines. */
+  $('overOv').classList.add('hidden');
+  Ads.hideBanner();
+  /* A due rating prompt takes this seam INSTEAD of the ad, so the two never
+     land back to back; the ad cadence is untouched and fires next seam.
+     "Rate now" leaves for the store, so the player comes back to the
+     game-over card rather than a run that started without them. */
+  /* iOS has no custom prompt (guideline 5.6.1): at the same moment it asks
+     for the system review sheet and reports 'review', which, like "Rate
+     now", returns to the game-over card so no run starts under the sheet. */
+  if (window.RatePrompt && RatePrompt.maybeShow(function (choice) {
+    if (choice === 'rate' || choice === 'review') shopClosed(); else startRun();
+  })) return;
+  Ads.showSeamAd().then(function (res) {
+    if (res.coins > 0) {
+      Save.addCoins(res.coins);
+      refreshMenuWallet();
+      Shop.toast('\u2744 +' + res.coins + ' snowflakes for watching.');
+    }
+    startRun();
+  });
 });
 document.getElementById('menuShopBtn').addEventListener('click', function () {
   document.getElementById('menu').classList.add('hidden');
@@ -144,7 +201,10 @@ document.getElementById('overShopBtn').addEventListener('click', function () {
   document.getElementById('overOv').classList.add('hidden');
   Shop.open();
 });
-document.getElementById('reviveBtn').addEventListener('click', doRevive);
+$('reviveBtn').addEventListener('click', doRevive);
+$('doubleBtn').addEventListener('click', doDouble);
+$('miClaim').addEventListener('click', claimMission);
+$('oClaimBtn').addEventListener('click', claimMission);
 
 /* Global ranking. The button stays hidden until Leaderboard.init() proves the
    plugin is present, so it never appears on a device that cannot use it. */
@@ -155,7 +215,8 @@ document.getElementById('menuBoardBtn').addEventListener('click', function () {
     var el = document.getElementById('menuBoardBtn');
     var was = el.textContent;
     el.textContent = (r && r.error === 'not signed in')
-      ? 'Sign in to Play Games to rank'
+      ? ((Cfg.isIOS && Cfg.isIOS()) ? 'Sign in to Game Center to rank'
+                                    : 'Sign in to Play Games to rank')
       : 'Ranking unavailable right now';
     setTimeout(function () { el.textContent = was; }, 2600);
   });
@@ -163,10 +224,195 @@ document.getElementById('menuBoardBtn').addEventListener('click', function () {
 
 /* Where the shop returns to depends on where it was opened from. */
 function shopClosed() {
-  if (state === 'over') document.getElementById('overOv').classList.remove('hidden');
-  else document.getElementById('menu').classList.remove('hidden');
+  if (state === 'over') $('overOv').classList.remove('hidden');
+  else $('menu').classList.remove('hidden');
   refreshMenuWallet();
+  /* A Remove Ads purchase made in the shop takes the two video offers
+     off the card it returns to. */
+  if (!Ads.rewardedAvailable()) {
+    $('reviveBtn').classList.add('hidden');
+    $('doubleBtn').classList.add('hidden');
+  }
+  /* Both destinations are banner screens. This also re-checks
+     removeAdsOwned, so a Remove Ads purchase made in the shop leaves the
+     banner down on the way back out. */
+  Ads.showBanner();
 }
+
+/* Game-over card -> menu (the back button's route out of a finished run). */
+function toMenu() {
+  $('overOv').classList.add('hidden');
+  $('pauseOv').classList.add('hidden');
+  $('pauseBtn').classList.add('hidden');
+  reset(0);
+  state = 'menu';
+  $('menu').classList.remove('hidden');
+  refreshMenuWallet();
+  Ads.showBanner();
+}
+
+/* =====================================================================
+   Pause
+   ---------------------------------------------------------------------
+   Reached from the HUD button, the Android back button, and by itself
+   when the app goes to the background mid-run. No banner here: the pause
+   card sits over a live run, and that is still "over gameplay".
+   ===================================================================== */
+function pauseRun() {
+  if (state !== 'play') return;
+  state = 'pause';
+  touchStack.length = 0; dir = 0;
+  $('pauseInfo').textContent = '🏔 Floor ' + maxFloor + '  ·  ✦ ' + score;
+  $('pauseBtn').classList.add('hidden');
+  $('pauseOv').classList.remove('hidden');
+}
+function resumeRun() {
+  if (state !== 'pause') return;
+  $('pauseOv').classList.add('hidden');
+  $('pauseBtn').classList.remove('hidden');
+  touchStack.length = 0; dir = 0;
+  state = 'play';
+}
+/* The pause button eats its own pointerdown so the tap that pauses is not
+   also read as "run right" by the window listener above. */
+$('pauseBtn').addEventListener('pointerdown', function (e) {
+  e.preventDefault(); e.stopPropagation(); pauseRun();
+});
+$('pauseBtn').addEventListener('click', pauseRun);
+$('resumeBtn').addEventListener('click', resumeRun);
+$('endRunBtn').addEventListener('click', function () {
+  if (state !== 'pause') return;
+  $('pauseOv').classList.add('hidden');
+  state = 'play';
+  gameOver();            /* a run ended by hand still banks its snowflakes */
+});
+
+/* =====================================================================
+   More games — a config-driven list of the sibling games (FTConfig
+   .moreGames). Each row opens its Play listing.
+   ===================================================================== */
+function liveGames() {
+  /* On iOS a game is listed only once its App Store id is known
+     (Cfg.hasStorePage); a link that cannot be built is not shown. */
+  return (Cfg.moreGames || []).filter(function (g) {
+    return g.live !== false && g.pkg && (!Cfg.hasStorePage || Cfg.hasStorePage(g.pkg));
+  });
+}
+function openListing(pkg) {
+  /* iOS: the App Store link from config.js (itms-apps://), '' while the
+     App Store id is unknown. No market:// fallback dance there. */
+  if (Cfg.isIOS && Cfg.isIOS()) {
+    var url = Cfg.storeUrl(pkg);
+    if (!url) return;
+    track('more_games_tap', { game: pkg });
+    window.location.href = url;
+    return;
+  }
+  track('more_games_tap', { game: pkg });
+  var web = 'https://play.google.com/store/apps/details?id=' + pkg;
+  if (!Cfg.isNative()) { window.open(web, '_blank'); return; }
+  /* market:// goes straight to the Play Store app. Capacitor turns any
+     off-app URL into an ACTION_VIEW intent and swallows the failure when
+     nothing can handle it, so there is no error to catch: if the app is
+     still in the foreground a moment later, nothing opened, and the
+     https link (which any browser can take) is tried instead. */
+  var tappedAt = Date.now();
+  window.location.href = 'market://details?id=' + pkg;
+  /* "Still in the foreground" is judged by the activity's own pause event
+     as well as document.hidden: on the 1.2.0 emulator check the page was
+     still reported visible 1.2 s after the Play Store had opened, so the
+     https link was fired on top of a handoff that had already worked. */
+  setTimeout(function () {
+    if (!document.hidden && lastPauseAt < tappedAt) window.location.href = web;
+  }, 1500);
+}
+function renderMoreGames() {
+  var list = $('moreList');
+  list.innerHTML = '';
+  /* "Free on Google Play" / "Free on the App Store" (the last word keeps
+     its non-breaking space, as in index.html). */
+  var line = $('moreStoreLine');
+  if (line && Cfg.storeName) {
+    line.textContent = 'From the maker of Frost Tower. Free on ' +
+      Cfg.storeName().replace(/ (\S+)$/, ' $1') + '.';
+  }
+  liveGames().forEach(function (g) {
+    var row = document.createElement('button');
+    row.className = 'mg-row';
+    if (g.icon) {
+      var img = document.createElement('img');
+      img.src = g.icon; img.alt = '';
+      row.appendChild(img);
+    }
+    var txt = document.createElement('div');
+    var name = document.createElement('b'); name.textContent = g.name;
+    var sub = document.createElement('span'); sub.textContent = g.blurb || '';
+    txt.appendChild(name); txt.appendChild(sub);
+    row.appendChild(txt);
+    var go = document.createElement('em'); go.textContent = 'GET';
+    row.appendChild(go);
+    row.addEventListener('click', function () { openListing(g.pkg); });
+    list.appendChild(row);
+  });
+}
+function moreOpen() { return !$('moreOv').classList.contains('hidden'); }
+function closeMore() {
+  $('moreOv').classList.add('hidden');
+  $('menu').classList.remove('hidden');
+}
+$('menuMoreBtn').addEventListener('click', function () {
+  renderMoreGames();
+  track('more_games_open', {});
+  $('menu').classList.add('hidden');
+  $('moreOv').classList.remove('hidden');
+});
+$('moreCloseBtn').addEventListener('click', closeMore);
+
+/* ---------------------------------------------------------------------
+   Android hardware back button.
+
+   Without @capacitor/app the WebView's default wins and back closes the
+   whole app from wherever the player is — including 40 floors into a
+   run. The order is the usual one-step-back stack:
+
+       rating prompt -> "Later"
+       shop          -> close the shop
+       more games    -> close it
+       in a run      -> pause
+       paused        -> resume
+       game over     -> menu (no ad: an interstitial fired by a back
+                        press is the accidental-click pattern Play
+                        penalises)
+       menu          -> exit the app
+
+   Returns what it did, which is only of interest to the tests.
+   --------------------------------------------------------------------- */
+function handleBack() {
+  var rp = window.RatePrompt;
+  if (rp && rp.isOpen()) { rp.dismiss(); return 'rate'; }
+  if (Shop.isOpen()) { Shop.close(); return 'shop'; }
+  if (moreOpen()) { closeMore(); return 'more'; }
+  if (state === 'play') { pauseRun(); return 'pause'; }
+  if (state === 'pause') { resumeRun(); return 'resume'; }
+  if (state === 'over') { toMenu(); return 'menu'; }
+  var App = appPlugin();
+  if (App && App.exitApp) App.exitApp();
+  return 'exit';
+}
+function appPlugin() {
+  return (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.App) || null;
+}
+function wireApp() {
+  var App = appPlugin();
+  if (!App || !App.addListener) return;      // browser: no hardware back
+  App.addListener('backButton', handleBack);
+  /* Belt and braces with visibilitychange above: some WebViews report
+     the activity pausing before (or without) the page turning hidden. */
+  App.addListener('pause', function () { lastPauseAt = Date.now(); pauseRun(); });
+}
+/* When the activity last went to the background (0 = never). Lets
+   openListing() tell whether the Play Store actually took over. */
+var lastPauseAt = 0;
 
 /* ---------- physics ---------- */
 var ACC = 1400, FRIC = 6, MAXV = 560, GRAV = 1500;
@@ -245,8 +491,8 @@ function step(dt) {
   var fSpeed = 26 + maxFloor * 0.9 + tGame * 1.1;
   frostY -= fSpeed * dt;
   if (frostY > cam + H + 60) frostY = cam + H + 60;   /* never lag too far */
-  if (graceTimer <= 0 && P.y + P.r > frostY) gameOver();
-  if (P.y - cam > H + 80) gameOver();
+  if (graceTimer <= 0 && P.y + P.r > frostY) die();
+  else if (P.y - cam > H + 80) die();
 
   updParts(dt);
 }
@@ -272,9 +518,53 @@ function showCombo(n) {
 function hideCombo() { comboEl.classList.remove('show'); }
 
 /* ---------- game over / revive ---------- */
+/* The frost caught up or the climber fell off the screen. A Shield, if
+   one is riding along, is spent here instead of the run. */
+function die() {
+  if (state !== 'play') return;
+  if (shieldActive) {
+    shieldActive = false;
+    rescue('#8fe8ff');
+    Shop.toast('🛡 Shield used — keep climbing!');
+    track('shield_used', { floor: maxFloor });
+    return;
+  }
+  gameOver();
+}
+
+/* Put the player back on solid ground with room to breathe: drop the
+   frost well below, clear the fall, and grant a short grace window so
+   a slow reaction doesn't waste the rescue. Shared by the revive video
+   and the Shield. */
+function rescue(colour) {
+  var landing = null;
+  for (var i = 0; i < plats.length; i++) {
+    if (!plats[i].broken && plats[i].f <= maxFloor &&
+        (!landing || plats[i].f > landing.f)) landing = plats[i];
+  }
+  if (landing) { P.x = landing.x + landing.w / 2; P.y = landing.y - P.r - 4; }
+  P.vx = 0; P.vy = -650;
+  cam = P.y - H * 0.42;
+  frostY = P.y + H * 0.85;
+  graceTimer = 1.6;
+  comboStreak = 0; comboTimer = 0;
+  lastFloor = maxFloor;
+  parts = [];
+  touchStack.length = 0; dir = 0;
+  state = 'play';
+  $('pauseBtn').classList.remove('hidden');
+  pop(P.x, P.y, colour, 26);
+}
+
+function coinsLine() {
+  return '❄ Earned: ' + (coinsThisRun + bonusCoins) + ' snowflakes' +
+         (doubledThisRun ? ' (doubled!)' : '');
+}
+
 function gameOver() {
   if (state !== 'play') return;
   state = 'over'; hideCombo();
+  $('pauseBtn').classList.add('hidden');
   score += comboTotal * 5;
   var isBest = score > best;
   if (isBest) best = score;
@@ -285,12 +575,30 @@ function gameOver() {
   if (earned < 0) earned = 0;
   coinsThisRun += earned;
 
+  /* A head-start run began on startFloor without climbing to it, so the
+     lifetime record — which is what the global board ranks and what the
+     floor milestones unlock on — only counts the floors actually CLIMBED.
+     Score needs no such correction: the skipped floors never paid any. */
+  var climbed = maxFloor - startFloor;
+
+  /* A revived run dies twice. It is still ONE run for the run count, the
+     rating prompt and the ad cadence. */
+  var firstDeath = !runCounted;
+  runCounted = true;
+
   Save.data.best = Math.max(Save.data.best, score);
-  Save.data.bestFloor = Math.max(Save.data.bestFloor, maxFloor);
+  Save.data.bestFloor = Math.max(Save.data.bestFloor, climbed);
   Save.data.coins += earned;
-  Save.data.runs++;
+  if (firstDeath) Save.data.runs++;
   Save.save();
+  if (firstDeath && window.RatePrompt) RatePrompt.tick();
   best = Save.data.best;
+
+  /* Daily mission. The floor a mission sees is the one on the HUD, head
+     start included: the power-up was paid for, and "reach floor 20" being
+     easier with it is the point of buying one. */
+  Missions.noteRun({ floor: maxFloor, coins: coinsThisRun, score: score,
+                     combo: comboTotal, counts: firstDeath });
 
   /* Global leaderboard. Fire-and-forget on purpose: submitFloor() always
      resolves, and nothing on the game-over screen waits for it. Submits the
@@ -301,64 +609,150 @@ function gameOver() {
 
   var newSkins = Shop.reconcileMilestones();
 
-  document.getElementById('oFloor').textContent = '🏔 Highest floor: ' + maxFloor;
-  document.getElementById('oCombo').textContent = '❄️ Combo points: ' + comboTotal;
-  document.getElementById('oScore').textContent =
+  $('oFloor').textContent = '🏔 Highest floor: ' + maxFloor +
+    (startFloor ? ' (' + climbed + ' climbed)' : '');
+  $('oCombo').textContent = '❄️ Combo points: ' + comboTotal;
+  $('oScore').textContent =
     '✦ Score: ' + score + (isBest && score > 0 ? '  — NEW BEST!' : '');
-  document.getElementById('oCoins').textContent = '❄ Earned: ' + earned + ' snowflakes';
-  document.getElementById('oQuip').textContent =
+  $('oCoins').textContent = coinsLine();
+  $('oQuip').textContent =
     newSkins.length ? ('🎁 Unlocked: ' + newSkins.map(function (s) { return s.name; }).join(', ') + '! Grab it in the shop.') :
-    maxFloor < 15 ? 'The frost barely had to try. 🥶' :
-    maxFloor < 40 ? 'A respectable climb. The tower nods.' :
-    maxFloor < 80 ? '❄️ Impressive! The frost is sweating. Somehow.' :
+    /* judged on floors CLIMBED: a head start that dies on its first
+       platform is not "a respectable climb" */
+    climbed < 15 ? 'The frost barely had to try. 🥶' :
+    climbed < 40 ? 'A respectable climb. The tower nods.' :
+    climbed < 80 ? '❄️ Impressive! The frost is sweating. Somehow.' :
     '👑 TOWER LEGEND. The summit whispers your name.';
 
   /* Revive is offered once per run, and only for a run worth saving. */
-  var reviveBtn = document.getElementById('reviveBtn');
-  var canRevive = !revivedThisRun && maxFloor >= 10 && Ads.rewardedAvailable();
+  var reviveBtn = $('reviveBtn');
+  var canRevive = !revivedThisRun && climbed >= Cfg.revive.minFloor && Ads.rewardedAvailable();
   reviveBtn.classList.toggle('hidden', !canRevive);
   reviveBtn.disabled = false;
   reviveBtn.textContent = '▶ WATCH AD · REVIVE';
+  if (canRevive) track('revive_offered', { floor: maxFloor });
 
-  Ads.noteRunFinished(tGame);
-  document.getElementById('overOv').classList.remove('hidden');
+  /* Double is offered once per run too, and never for small change. Both
+     offers go through rewardedAvailable(), which is false with no ad
+     loaded and for Remove Ads owners — so for them the buttons are simply
+     not there, rather than there and dead. */
+  var doubleBtn = $('doubleBtn');
+  var canDouble = !doubledThisRun && coinsThisRun >= Cfg.economy.doubleMinCoins &&
+                  Ads.rewardedAvailable();
+  doubleBtn.classList.toggle('hidden', !canDouble);
+  doubleBtn.disabled = false;
+  doubleBtn.textContent = doubleLabel();
+  if (canDouble) track('double_offered', { coins: coinsThisRun });
+
+  /* No video loaded (e.g. an earlier "No fill"): ask again now, so the
+     NEXT card can offer revive / double. */
+  Ads.warmRewarded();
+
+  if (firstDeath) Ads.noteRunFinished(tGame);
+  track('run_end', { floor: maxFloor, climbed: climbed, score: score,
+                     seconds: Math.round(tGame), snowflakes: coinsThisRun,
+                     revived: revivedThisRun, headstart: !!startFloor });
+
+  refreshMenuWallet();
+  $('overOv').classList.remove('hidden');
+  /* The run is over and the player is reading a score, so the banner goes
+     back up here and on the menu - the only two screens that get one. */
+  Ads.showBanner();
+  /* Re-arm the come-back reminder from this run. No-op until the player
+     has claimed a mission and granted the permission. */
+  Missions.armReminder();
   if (navigator.vibrate) navigator.vibrate([60, 40, 80]);
 }
 
 function doRevive() {
-  var btn = document.getElementById('reviveBtn');
-  if (btn.disabled) return;
+  var btn = $('reviveBtn');
+  if (btn.disabled || adBusy || state !== 'over') return;
+  adBusy = true;
   btn.disabled = true;
   btn.textContent = 'Loading ad…';
-  Ads.showRewarded().then(function (r) {
+  Ads.showRewarded('revive').then(function (r) {
+    adBusy = false;
     if (!r.earned) {
       btn.disabled = false;
       btn.textContent = '▶ WATCH AD · REVIVE';
       Shop.toast(r.unavailable ? 'No video ready — try again in a moment.' : 'Revive cancelled.', true);
       return;
     }
+    if (state !== 'over') return;      /* the card was left while the ad ran */
     revivedThisRun = true;
-    document.getElementById('overOv').classList.add('hidden');
-
-    /* Put the player back on solid ground with room to breathe: drop the
-       frost well below, clear the fall, and grant a short grace window so
-       a slow reaction doesn't waste the reward. */
-    var landing = null;
-    for (var i = 0; i < plats.length; i++) {
-      if (!plats[i].broken && plats[i].f <= maxFloor &&
-          (!landing || plats[i].f > landing.f)) landing = plats[i];
-    }
-    if (landing) { P.x = landing.x + landing.w / 2; P.y = landing.y - P.r - 4; }
-    P.vx = 0; P.vy = -650;
-    cam = P.y - H * 0.42;
-    frostY = P.y + H * 0.85;
-    graceTimer = 1.6;
-    comboStreak = 0; comboTimer = 0;
-    lastFloor = maxFloor;
-    parts = [];
-    state = 'play';
-    pop(P.x, P.y, '#ffd166', 26);
+    track('revive_used', { floor: maxFloor });
+    $('overOv').classList.add('hidden');
+    Ads.hideBanner();
+    rescue('#ffd166');
   });
+}
+
+function doubleLabel() { return '▶ WATCH AD · DOUBLE ❄ (+' + coinsThisRun + ')'; }
+
+/* Doubles what this run earned. The amount is fixed when the button is
+   pressed, so the reward is the number the button showed. */
+function doDouble() {
+  var btn = $('doubleBtn');
+  if (btn.disabled || adBusy || doubledThisRun || state !== 'over') return;
+  var amount = coinsThisRun;
+  adBusy = true;
+  btn.disabled = true;
+  btn.textContent = 'Loading ad…';
+  Ads.showRewarded('double').then(function (r) {
+    adBusy = false;
+    if (!r.earned) {
+      btn.disabled = false;
+      btn.textContent = doubleLabel();
+      Shop.toast(r.unavailable ? 'No video ready — try again in a moment.' : 'No reward — the video was closed early.', true);
+      return;
+    }
+    doubledThisRun = true;
+    bonusCoins = amount;
+    Save.addCoins(amount);
+    track('double_used', { coins: amount });
+    btn.classList.add('hidden');
+    $('oCoins').textContent = coinsLine();
+    refreshMenuWallet();
+    Shop.toast('❄ +' + amount + ' snowflakes — doubled!');
+  });
+}
+
+/* ---------- daily mission ---------- */
+function renderMission() {
+  var v = Missions.view();
+  $('missionTile').classList.toggle('hidden', !v);
+  $('oMission').classList.toggle('hidden', !v);
+  if (!v) { $('oClaimBtn').classList.add('hidden'); return; }
+
+  var claimable = v.done && !v.claimed;
+  var claimText = 'CLAIM +' + v.total + ' ❄' + (v.bonus ? ' (streak +' + v.bonus + ')' : '');
+
+  $('miStreak').textContent = v.streak > 0 ? '🔥 ' + v.streak + '-day streak' : '';
+  $('miText').textContent = v.text;
+  $('miFill').style.width = Math.round(v.progress / v.goal * 100) + '%';
+  $('miFoot').textContent =
+    v.claimed ? '✓ Claimed. A new mission arrives tomorrow.' :
+    v.done ? 'Complete! Claim your reward.' :
+    v.progress + ' / ' + v.goal + '  ·  reward ' + v.total + ' ❄';
+  $('miClaim').classList.toggle('hidden', !claimable);
+  $('miClaim').textContent = claimText;
+
+  $('oMission').textContent =
+    v.claimed ? '🎯 Daily mission claimed ✓' :
+    v.done ? '🎯 Daily mission complete!' :
+    '🎯 ' + v.text + ': ' + v.progress + ' / ' + v.goal;
+  $('oClaimBtn').classList.toggle('hidden', !claimable);
+  $('oClaimBtn').textContent = claimText;
+}
+
+function claimMission() {
+  var r = Missions.claim();
+  if (!r.ok) return;
+  refreshMenuWallet();
+  Shop.toast('🎯 +' + r.total + ' ❄' + (r.streak > 1 ? '  ·  🔥 ' + r.streak + '-day streak' : ''));
+  /* The ONLY place the notification permission is ever asked for: the
+     player has just been paid by the feature the reminder is about. */
+  Missions.askPermissionOnce();
 }
 
 /* ---------- render ---------- */
@@ -434,6 +828,11 @@ function draw(tSec) {
   /* player — the skin owns everything from here */
   ctx.save();
   ctx.translate(P.x, P.y);
+  if (shieldActive) {
+    /* drawn before the skin, which is free to leave the context dirty */
+    ctx.strokeStyle = 'rgba(143,232,255,.9)'; ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.arc(0, 0, P.r + 7 + Math.sin(tSec * 5) * 1.5, 0, 7); ctx.stroke();
+  }
   if (graceTimer > 0) ctx.globalAlpha = 0.45 + Math.abs(Math.sin(tSec * 12)) * 0.55;
   Skins.draw(ctx, Save.data.skin, P.r, P.vx, P.vy, tSec);
   ctx.restore();
@@ -447,7 +846,7 @@ function draw(tSec) {
   ctx.globalAlpha = 1;
 
   /* frost line */
-  if (state === 'play' || state === 'over') {
+  if (state === 'play' || state === 'pause' || state === 'over') {
     var fg = ctx.createLinearGradient(0, frostY - 70, 0, frostY + 200);
     fg.addColorStop(0, 'rgba(160,230,255,0)');
     fg.addColorStop(.35, 'rgba(160,230,255,.55)');
@@ -471,8 +870,19 @@ function draw(tSec) {
   ctx.globalAlpha = 1;
 }
 
+/* Everything on the menu and the game-over card that mirrors the save:
+   the wallet, the daily mission, and what the next run will spend. */
 function refreshMenuWallet() {
-  document.getElementById('menuWallet').textContent = '❄ ' + Save.data.coins;
+  $('menuWallet').textContent = '❄ ' + Save.data.coins;
+  var pu = Save.data.powerups, bits = [];
+  if (pu.shield > 0) bits.push(Cfg.powerups.shield.icon + ' Shield');
+  if (pu.headstart > 0) bits.push(Cfg.powerups.headstart.icon + ' Head start');
+  var next = bits.length ? 'Next run: ' + bits.join(' + ') : '';
+  ['menuNextRun', 'overNextRun'].forEach(function (id) {
+    $(id).textContent = next;
+    $(id).classList.toggle('hidden', !next);
+  });
+  renderMission();
 }
 
 /* ---------- loop ---------- */
@@ -506,13 +916,31 @@ function bootStep(label, fn) {
     .catch(function (e) { console.warn('[boot] ' + label + ' failed:', e); });
 }
 
+if (window.RatePrompt) RatePrompt.init({
+  appName: 'Frost Tower',
+  packageId: 'com.ahmadessam.frosttower',
+  config: Cfg,          // per-platform store link + name (config.js)
+  everyN: 2,
+  onChoice: function (action) { track('rate_prompt', { action: action }); },
+  colors: { card: '#fff', text: '#3a3350', title: '#2e6fb0', muted: '#5b5470',
+            accent: 'linear-gradient(180deg,#5cc8ff,#2e9be6)', accentText: '#fff' }
+});
+
 Save.load().catch(function (e) {
   console.warn('[boot] save load failed:', e);
 }).then(function () {
   best = Save.data.best;
   updHud();
+  /* The saved ad cadence, and the last known Remove Ads answer so an
+     owner is not shown a banner in the gap before billing replies. */
+  Ads.loadCadence();
+  Ads.setRemoveAds(Save.data.noAds);
+  var rolled = Missions.sync();
+  if (rolled.carried) Shop.toast('🎯 Yesterday’s mission: +' + rolled.carried + ' ❄');
   refreshMenuWallet();
   Shop.reconcileMilestones();
+  $('menuMoreBtn').classList.toggle('hidden', !liveGames().length);
+  wireApp();
 
   /* The two SDKs start together and never wait on each other. Chaining them
      meant a slow billing call delayed ads indefinitely — on an offline
@@ -523,15 +951,34 @@ Save.load().catch(function (e) {
     return Billing.init();
   }).then(function () {
     return bootStep('entitlements', function () {
+      // Applies Remove Ads too. Safe after Ads.init(): seamAdDue() re-checks
+      // the flag at show time, so at worst one preload is wasted.
       Shop.reconcileEntitlements();
-      // Safe to apply after Ads.init(): shouldShowInterstitial() re-checks
-      // this flag at show time, so at worst one preload is wasted.
-      Ads.setRemoveAds(Billing.owns('remove_ads'));
       if (Shop.isOpen()) Shop.render();
     });
   });
 
   var adsReady = bootStep('ads', function () { return Ads.init(); });
+
+  /* The boot menu's banner. Every other banner is raised by a screen
+     change, and booting INTO the menu is not one, so until now the first
+     menu of every session had no banner at all. It waits for the ad SDK
+     and — briefly — for billing, so a Remove Ads owner whose entitlement
+     arrives a moment later is not shown one. Never over a run: by the
+     time this fires the player may already be climbing. */
+  var billingOrTimeout = Promise.race([
+    billingReady,
+    new Promise(function (r) { setTimeout(r, 3000); })
+  ]);
+  Promise.all([adsReady, billingOrTimeout]).then(function () {
+    if (state === 'menu' || state === 'over') Ads.showBanner();
+    // Videos may only now be loadable: nothing to re-render on the menu,
+    // and the game-over card re-reads availability each time it opens.
+  });
+
+  /* Re-arm the come-back reminder for this session (no-op before the
+     first mission claim). */
+  bootStep('reminder', function () { return Missions.armReminder(); });
 
   var boardReady = bootStep('leaderboard', function () {
     return Leaderboard.init().then(function () {
@@ -549,5 +996,30 @@ Save.load().catch(function (e) {
 }).then(function () {
   if (Shop.isOpen()) Shop.render();
 });
+
+/* Handle for the test suites and the hardware-back listener. _debug
+   exists so a test can stage a death without playing to one. */
+window.FTGame = {
+  state: function () { return state; },
+  pause: pauseRun,
+  resume: resumeRun,
+  handleBack: handleBack,
+  startRun: startRun,
+  refresh: refreshMenuWallet,
+  _debug: {
+    info: function () {
+      return { state: state, maxFloor: maxFloor, startFloor: startFloor, score: score,
+               shield: shieldActive, coinsThisRun: coinsThisRun, tGame: tGame,
+               frostY: frostY, playerY: P.y, revived: revivedThisRun };
+    },
+    set: function (o) {
+      if (o.maxFloor !== undefined) { maxFloor = o.maxFloor; lastFloor = o.maxFloor; }
+      if (o.score !== undefined) score = o.score;
+      if (o.tGame !== undefined) tGame = o.tGame;
+      if (o.comboTotal !== undefined) comboTotal = o.comboTotal;
+    },
+    die: die
+  }
+};
 
 })();

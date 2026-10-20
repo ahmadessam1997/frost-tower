@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "461277311772",
+    "project_id": "ahmad-essam-games",
+    "storage_bucket": "ahmad-essam-games.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:461277311772:android:d618827a247e31435700d9",
+        "android_client_info": {
+          "package_name": "com.ahmadessam.escapechambers"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDghIUPH9OjTkbqXa5DqeB0XVm6cQxT3ZM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:461277311772:android:a4754ff5d05f22b35700d9",
+        "android_client_info": {
+          "package_name": "com.ahmadessam.frosttower"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDghIUPH9OjTkbqXa5DqeB0XVm6cQxT3ZM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -5,5 +5,11 @@
   "backgroundColor": "#0a1030",
   "android": {
     "backgroundColor": "#0a1030"
+  },
+  "plugins": {
+    "LocalNotifications": {
+      "smallIcon": "ic_stat_snowflake",
+      "iconColor": "#38B6FF"
+    }
   }
 }

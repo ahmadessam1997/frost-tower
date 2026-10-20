@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Status-bar icon for the daily-mission reminder (capacitor.config.json ->
+     plugins.LocalNotifications.smallIcon). Android draws small icons as a
+     flat silhouette from the alpha channel alone, so the launcher icon
+     would render as a solid white square; this is a plain snowflake. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M11,2h2v3.6l2.3,-2.3 1.4,1.4L13,8.4V11h2.6l3.7,-3.7 1.4,1.4L18.4,11H22v2h-3.6l2.3,2.3 -1.4,1.4L15.6,13H13v2.6l3.7,3.7 -1.4,1.4L13,18.4V22h-2v-3.6l-2.3,2.3 -1.4,-1.4L11,15.6V13H8.4l-3.7,3.7 -1.4,-1.4L5.6,13H2v-2h3.6L3.3,8.7l1.4,-1.4L8.4,11H11V8.4L7.3,4.7l1.4,-1.4L11,5.6z" />
+</vector>
